@@ -846,6 +846,8 @@
       "newFile": "New File",
       "newCanvas": "New Canvas",
       "newFolder": "New Folder",
+      "importMarkdown": "Import Markdown Documents",
+      "importFolder": "Import Folder (with subfolders)",
       "search": "Search",
       "rename": "Rename",
       "duplicate": "Copy",
@@ -898,7 +900,8 @@
     "toast": {
       "pathCopied": "Path copied to clipboard",
       "duplicated": "Duplicate created",
-      "fileCopiedToClipboard": "File copied to clipboard, paste it in your file manager"
+      "fileCopiedToClipboard": "File copied to clipboard, paste it in your file manager",
+      "imported": "Imported {{count}} document(s)"
     },
     "bookmarks": {
       "dialog": {
@@ -947,6 +950,7 @@
       "newFileFailed": "Failed to create file:",
       "newFolderFailed": "Failed to create folder:",
       "newCanvasFailed": "Failed to create canvas:",
+      "importFailed": "Failed to import documents:",
       "deleteFailed": "Delete failed:",
       "openLocationFailed": "Failed to open file location:",
       "renameFailed": "Rename failed:",
@@ -970,9 +974,16 @@
     "toolbar": {
       "newFile": "New File (in current file's folder)",
       "newFolder": "New Folder (in current file's folder)",
+      "importMarkdown": "Import Markdown documents (copied into the current file's folder)",
+      "importFolder": "Import folder with subfolders (copied into the current file's folder)",
       "collapseAll": "Collapse All",
       "expandAll": "Expand All",
       "revealActiveFile": "Reveal Active File"
+    },
+    "import": {
+      "markdownFilter": "Markdown Documents",
+      "folderDialogTitle": "Select folder to import",
+      "noneFound": "No Markdown documents found in the selected location"
     },
     "tags": {
       "filterPlaceholder": "Filter tags...",

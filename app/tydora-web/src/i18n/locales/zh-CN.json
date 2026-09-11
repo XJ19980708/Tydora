@@ -845,6 +845,8 @@
       "newFile": "新建文件",
       "newCanvas": "新建白板",
       "newFolder": "新建文件夹",
+      "importMarkdown": "导入 Markdown 文档",
+      "importFolder": "导入文件夹（含子目录）",
       "search": "搜索",
       "rename": "重命名",
       "duplicate": "复制",
@@ -898,7 +900,8 @@
       "pathCopied": "路径已复制到剪贴板",
       "duplicated": "已创建副本",
       "duplicatedAndCopied": "已创建副本并复制到剪切板，可在文件管理器中粘贴",
-      "fileCopiedToClipboard": "文件已复制到剪切板，可在文件管理器中粘贴"
+      "fileCopiedToClipboard": "文件已复制到剪切板，可在文件管理器中粘贴",
+      "imported": "已导入 {{count}} 个文档"
     },
     "bookmarks": {
       "dialog": {
@@ -947,6 +950,7 @@
       "newFileFailed": "新建文件失败:",
       "newFolderFailed": "新建文件夹失败:",
       "newCanvasFailed": "新建白板失败:",
+      "importFailed": "导入文档失败:",
       "deleteFailed": "删除失败:",
       "openLocationFailed": "打开文件位置失败:",
       "renameFailed": "重命名失败:",
@@ -970,9 +974,16 @@
     "toolbar": {
       "newFile": "新建文件（在当前选中文件所在目录）",
       "newFolder": "新建文件夹（在当前选中文件所在目录）",
+      "importMarkdown": "导入 Markdown 文档（复制到当前选中文件所在目录）",
+      "importFolder": "导入文件夹（含子目录，复制到当前选中文件所在目录）",
       "collapseAll": "折叠全部",
       "expandAll": "展开全部",
       "revealActiveFile": "定位当前文件"
+    },
+    "import": {
+      "markdownFilter": "Markdown 文档",
+      "folderDialogTitle": "选择要导入的文件夹",
+      "noneFound": "所选位置未找到 Markdown 文档"
     },
     "tags": {
       "filterPlaceholder": "筛选标签...",

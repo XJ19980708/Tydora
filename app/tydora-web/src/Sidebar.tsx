@@ -4,7 +4,8 @@ bootStamp("sidebar_module_imported");
 import { useTranslation } from "react-i18next";
 import i18n from "./i18n";
 import { createPortal } from "react-dom";
-import { readDir, readTextFile, writeTextFile, mkdir, remove, rename, exists } from "@tauri-apps/plugin-fs";
+import { readDir, readTextFile, writeTextFile, mkdir, remove, rename, exists, copyFile } from "@tauri-apps/plugin-fs";
+import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfirmDialog } from "./components";
 import { UpdateLinkDialog } from "./components";
@@ -262,6 +263,125 @@ async function uniqueDirPath(dirPath: string, dirName: string): Promise<string> 
   for (let i = 1; ; i++) {
     const candidate = joinPath(dirPath, `${dirName} ${i}`);
     if (!(await exists(candidate))) return candidate;
+  }
+}
+
+/**
+ * 弹出文件选择器，把选中的 Markdown 文档复制进目标目录（保留原始字节）。
+ * 同名文件通过 uniqueFilePath 自动追加序号。
+ * 返回值：用户取消返回 null，否则返回实际导入数量。
+ */
+async function copyMarkdownFilesInto(targetDir: string): Promise<number | null> {
+  const selected = await open({
+    multiple: true,
+    directory: false,
+    filters: [{ name: i18n.t("sidebar.import.markdownFilter"), extensions: ["md", "markdown", "mdx"] }],
+  });
+  if (!selected) return null;
+
+  const sources = Array.isArray(selected) ? selected : [selected];
+  let imported = 0;
+  for (const src of sources) {
+    const fileName = src.split(/[/\\]/).pop() || "";
+    if (!fileName) continue;
+    const dot = fileName.lastIndexOf(".");
+    const baseName = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const ext = dot > 0 ? fileName.slice(dot) : ".md";
+    const destPath = await uniqueFilePath(targetDir, baseName, ext);
+    await copyFile(src, destPath);
+    imported++;
+  }
+  return imported;
+}
+
+/** 递归收集目录下的 Markdown 文档，返回相对路径（"/" 分隔）与绝对路径。跳过以 "." 开头的隐藏项。 */
+async function collectMarkdownTree(rootDir: string): Promise<Array<{ rel: string; path: string }>> {
+  const found: Array<{ rel: string; path: string }> = [];
+
+  const walk = async (dir: string, relDir: string) => {
+    let entries: Awaited<ReturnType<typeof readDir>>;
+    try {
+      entries = await readDir(dir);
+    } catch {
+      // 单个子目录读失败不影响整体导入（例如权限不足的子文件夹）
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.name || entry.name.startsWith(".")) continue;
+      const rel = relDir ? `${relDir}/${entry.name}` : entry.name;
+      const fullPath = joinPath(dir, entry.name);
+      if (entry.isDirectory) {
+        await walk(fullPath, rel);
+      } else if (isMarkdownFileName(entry.name)) {
+        found.push({ rel, path: fullPath });
+      }
+    }
+  };
+
+  await walk(rootDir, "");
+  return found;
+}
+
+/**
+ * 选择一个文件夹，把其中所有 Markdown 文档连同子目录结构复制进目标目录。
+ * 内容落在 `目标目录/<所选文件夹名>/` 下；同名目录已存在时合并，同名文件自动追加序号。
+ * 返回值：用户取消返回 null，否则返回实际导入数量（可能为 0）。
+ */
+async function copyMarkdownFolderInto(targetDir: string): Promise<number | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: i18n.t("sidebar.import.folderDialogTitle"),
+  });
+  if (!selected || Array.isArray(selected)) return null;
+
+  const folderName = selected.split(/[/\\]/).filter(Boolean).pop() || "imported";
+  const destRoot = joinPath(targetDir, folderName);
+  if (!(await exists(destRoot))) await mkdir(destRoot, { recursive: true });
+
+  const files = await collectMarkdownTree(selected);
+  const createdDirs = new Set<string>();
+  let imported = 0;
+  for (const file of files) {
+    const slash = file.rel.lastIndexOf("/");
+    const relDir = slash >= 0 ? file.rel.slice(0, slash) : "";
+    let destDir = destRoot;
+    if (relDir) {
+      destDir = joinPath(destRoot, relDir.split("/").join(pathSep()));
+      if (!createdDirs.has(destDir)) {
+        await mkdir(destDir, { recursive: true });
+        createdDirs.add(destDir);
+      }
+    }
+    const fileName = file.rel.slice(slash + 1);
+    const dot = fileName.lastIndexOf(".");
+    const baseName = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const ext = dot > 0 ? fileName.slice(dot) : ".md";
+    const destPath = await uniqueFilePath(destDir, baseName, ext);
+    await copyFile(file.path, destPath);
+    imported++;
+  }
+  return imported;
+}
+
+/**
+ * 执行一次导入并给出反馈。返回是否发生了实际导入（调用方据此决定要不要刷新文件树）。
+ * null = 用户取消；0 = 选定位置没有 Markdown 文档。
+ */
+async function reportImport(run: () => Promise<number | null>): Promise<boolean> {
+  try {
+    const imported = await run();
+    if (imported === null) return false;
+    if (imported === 0) {
+      showToast(i18n.t("sidebar.import.noneFound"));
+      return false;
+    }
+    showToast(i18n.t("sidebar.toast.imported", { count: imported }));
+    return true;
+  } catch (err) {
+    console.error(i18n.t("sidebar.error.importFailed"), err);
+    showToast(i18n.t("sidebar.error.importFailed"));
+    return false;
   }
 }
 
@@ -768,6 +888,8 @@ interface FileActions {
   onOpen: () => void;
   onNewFile: () => void;
   onNewFolder: () => void;
+  onImportMarkdown: () => void;
+  onImportFolder: () => void;
   onNewWhiteboard: () => void;
   onSearch: () => void;
   onRename: () => void;
@@ -844,6 +966,24 @@ const MENU_ICONS = {
       <line x1="9" y1="14" x2="15" y2="14" />
     </>,
   ),
+  importMarkdown: menuIcon(
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="M12 12v6" />
+      <polyline points="9.5 15.5 12 18 14.5 15.5" />
+      <path d="M17 18h3" />
+    </>,
+  ),
+  importFolder: menuIcon(
+    <>
+      <path d="M22 19a2 2 0 0 1-2 2h-5" />
+      <path d="M2 19V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v3" />
+      <path d="M9 13v6" />
+      <polyline points="6.5 16.5 9 19 11.5 16.5" />
+      <path d="M15 19h6" />
+    </>,
+  ),
   search: menuIcon(
     <>
       <circle cx="11" cy="11" r="8" />
@@ -918,6 +1058,8 @@ function getFileMenuItems(
     { label: t("sidebar.contextMenu.newFile"), icon: MENU_ICONS.newFile, onClick: actions.onNewFile, separator: true },
     { label: t("sidebar.contextMenu.newCanvas"), icon: MENU_ICONS.newCanvas, onClick: actions.onNewWhiteboard },
     { label: t("sidebar.contextMenu.newFolder"), icon: MENU_ICONS.newFolder, onClick: actions.onNewFolder },
+    { label: t("sidebar.contextMenu.importMarkdown"), icon: MENU_ICONS.importMarkdown, onClick: actions.onImportMarkdown },
+    { label: t("sidebar.contextMenu.importFolder"), icon: MENU_ICONS.importFolder, onClick: actions.onImportFolder },
     { label: t("sidebar.contextMenu.favorite"), icon: MENU_ICONS.favorite, onClick: actions.onBookmark, separator: true },
     { label: t("sidebar.contextMenu.rename"), icon: MENU_ICONS.rename, onClick: actions.onRename, separator: true },
     {
@@ -942,6 +1084,8 @@ function getFolderMenuItems(actions: FileActions, t: (key: string) => string): C
     { label: t("sidebar.contextMenu.newFile"), icon: MENU_ICONS.newFile, onClick: actions.onNewFile },
     { label: t("sidebar.contextMenu.newCanvas"), icon: MENU_ICONS.newCanvas, onClick: actions.onNewWhiteboard },
     { label: t("sidebar.contextMenu.newFolder"), icon: MENU_ICONS.newFolder, onClick: actions.onNewFolder, separator: true },
+    { label: t("sidebar.contextMenu.importMarkdown"), icon: MENU_ICONS.importMarkdown, onClick: actions.onImportMarkdown },
+    { label: t("sidebar.contextMenu.importFolder"), icon: MENU_ICONS.importFolder, onClick: actions.onImportFolder },
     { label: t("sidebar.contextMenu.favorite"), icon: MENU_ICONS.favorite, onClick: actions.onBookmark },
     { label: t("sidebar.contextMenu.rename"), icon: MENU_ICONS.rename, onClick: actions.onRename, separator: true },
     { label: t("sidebar.contextMenu.moveTo"), icon: MENU_ICONS.moveTo, onClick: actions.onMoveTo },
@@ -957,6 +1101,8 @@ function getBlankMenuItems(actions: FileActions, t: (key: string) => string): Co
     { label: t("sidebar.contextMenu.newFile"), icon: MENU_ICONS.newFile, onClick: actions.onNewFile },
     { label: t("sidebar.contextMenu.newCanvas"), icon: MENU_ICONS.newCanvas, onClick: actions.onNewWhiteboard },
     { label: t("sidebar.contextMenu.newFolder"), icon: MENU_ICONS.newFolder, onClick: actions.onNewFolder, separator: true },
+    { label: t("sidebar.contextMenu.importMarkdown"), icon: MENU_ICONS.importMarkdown, onClick: actions.onImportMarkdown },
+    { label: t("sidebar.contextMenu.importFolder"), icon: MENU_ICONS.importFolder, onClick: actions.onImportFolder },
     { label: t("sidebar.contextMenu.copyPath"), icon: MENU_ICONS.copyPath, onClick: actions.onCopyPath },
     { label: t("sidebar.contextMenu.openInTerminal"), icon: MENU_ICONS.openTerminal, onClick: actions.onOpenTerminal },
     { label: t("sidebar.contextMenu.openLocation"), icon: MENU_ICONS.openLocation, onClick: actions.onOpenLocation },
@@ -1258,6 +1404,16 @@ function TreeNodeComp({
     } catch (err) { console.error(i18n.t("sidebar.error.newFolderFailed"), err); }
   }, [node, onReload, onStartEdit]);
 
+  const handleImportMarkdown = useCallback(async () => {
+    const targetDir = node.isDirectory ? node.path : parentPath(node.path);
+    if (await reportImport(() => copyMarkdownFilesInto(targetDir))) await onReload(targetDir);
+  }, [node, onReload]);
+
+  const handleImportFolder = useCallback(async () => {
+    const targetDir = node.isDirectory ? node.path : parentPath(node.path);
+    if (await reportImport(() => copyMarkdownFolderInto(targetDir))) await onReload(targetDir);
+  }, [node, onReload]);
+
   const handleNewWhiteboard = useCallback(async () => {
     const targetDir = node.isDirectory ? node.path : parentPath(node.path);
     try {
@@ -1348,6 +1504,8 @@ function TreeNodeComp({
     onNewWindow: () => onNewWindow(node.path),
     onNewFile: handleNewFile,
     onNewFolder: handleNewFolder,
+    onImportMarkdown: handleImportMarkdown,
+    onImportFolder: handleImportFolder,
     onNewWhiteboard: handleNewWhiteboard,
     onSearch: showDevAlert,
     onRename: handleRename,
@@ -2091,6 +2249,16 @@ function FileTree({
     } catch (err) { console.error(i18n.t("sidebar.error.newFolderFailed"), err); }
   }, [selectionDir, rootPath, handleReload, handleStartEdit]);
 
+  const handleRootImportMarkdown = useCallback(async () => {
+    const targetDir = selectionDir;
+    if (await reportImport(() => copyMarkdownFilesInto(targetDir))) await handleReload(ancestorDirs(targetDir, rootPath));
+  }, [selectionDir, rootPath, handleReload]);
+
+  const handleRootImportFolder = useCallback(async () => {
+    const targetDir = selectionDir;
+    if (await reportImport(() => copyMarkdownFolderInto(targetDir))) await handleReload(ancestorDirs(targetDir, rootPath));
+  }, [selectionDir, rootPath, handleReload]);
+
   const handleNewRootWhiteboard = useCallback(async () => {
     try {
       const filePath = await uniqueFilePath(rootPath, "untitled", ".canvas");
@@ -2124,6 +2292,8 @@ function FileTree({
     onNewWindow: showDevAlert,
     onNewFile: handleNewRootFile,
     onNewFolder: handleNewRootFolder,
+    onImportMarkdown: handleRootImportMarkdown,
+    onImportFolder: handleRootImportFolder,
     onNewWhiteboard: handleNewRootWhiteboard,
     onSearch: showDevAlert,
     onRename: () => {},
@@ -2660,6 +2830,32 @@ function FileTree({
             <path d="M12 10v6" />
             <path d="M9 13h6" />
             <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+          </svg>
+        </button>
+        <button
+          className="sidebar-action-btn"
+          onClick={handleRootImportMarkdown}
+          title={i18n.t("sidebar.toolbar.importMarkdown")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="M12 12v6" />
+            <polyline points="9.5 15.5 12 18 14.5 15.5" />
+            <path d="M17 18h3" />
+          </svg>
+        </button>
+        <button
+          className="sidebar-action-btn"
+          onClick={handleRootImportFolder}
+          title={i18n.t("sidebar.toolbar.importFolder")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            <path d="M22 19a2 2 0 0 1-2 2h-5" />
+            <path d="M2 19V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v3" />
+            <path d="M9 13v6" />
+            <polyline points="6.5 16.5 9 19 11.5 16.5" />
+            <path d="M15 19h6" />
           </svg>
         </button>
         <div className="sidebar-sort-wrap">
