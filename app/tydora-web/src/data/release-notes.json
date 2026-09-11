@@ -1,0 +1,1696 @@
+{
+  "generatedAt": "2026-09-11",
+  "current": "0.2.7",
+  "versions": [
+    {
+      "version": "0.2.7",
+      "date": "2026-09-11",
+      "released": false,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "tydora-core + tydora-cli Phase 1-5",
+              "hash": "b7584cd"
+            },
+            {
+              "text": "add TagPanel component with list and graph views, including tag filtering and search functionality",
+              "hash": "a4d683c"
+            },
+            {
+              "text": "enhance view state management for cross-mode editor transitions",
+              "hash": "30adf45"
+            },
+            {
+              "text": "添加右侧栏切换功能，更新快捷键配置和国际化支持",
+              "hash": "417eb80"
+            },
+            {
+              "text": "更新欢迎页品牌区样式，调整图标尺寸并修改不透明度",
+              "hash": "83fac21"
+            },
+            {
+              "text": "更新版本号至 0.2.7，修改相关文档和配置文件",
+              "hash": "75a6522"
+            },
+            {
+              "text": "支持导入 Markdown 文档与整个文件夹树",
+              "hash": "411b505"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复 Windows 便携版打包逻辑，支持多种可执行文件名",
+              "hash": "12329f9"
+            },
+            {
+              "text": "修复任务管理器窗口图标显示噪点花纹",
+              "hash": "acaf468"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "README 与 README_ZH 增加中英文互链",
+              "hash": "8e365f5"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "更新版本号至 0.2.6",
+              "hash": "cc8a94c"
+            },
+            {
+              "text": "替换应用 logo 为自定义图标",
+              "hash": "c062fb6"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock",
+              "hash": "cab78ab"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.5",
+      "date": "2026-09-05",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "代码块工具栏新增主题切换功能",
+              "hash": "3739bd9"
+            },
+            {
+              "text": "add vault parser for markdown publishing",
+              "hash": "743b819"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "更新 CSS 变量名并替换站点图标",
+              "hash": "4f0708c"
+            },
+            {
+              "text": "优化滚动持久化与点击交互",
+              "hash": "163a471"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布 v0.2.5",
+              "hash": "de105f5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.4",
+      "date": "2026-09-03",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "支持右侧栏与侧栏 tab 可配置分配",
+              "hash": "2c32327"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复 Leader 菜单重复触发与按键绑定",
+              "hash": "9f7f815"
+            },
+            {
+              "text": "文件切换后重置光标位置，避免 focus 滚动到底部",
+              "hash": "fb302b4"
+            },
+            {
+              "text": "统一右侧栏折叠按钮样式",
+              "hash": "cf8c477"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.3",
+      "date": "2026-09-02",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "enhance theme editor functionality and UI improvements",
+              "hash": "1c45e11"
+            },
+            {
+              "text": "enhance theme synchronization and management",
+              "hash": "a39f523"
+            },
+            {
+              "text": "enhance scroll behavior and font size adjustment in editor",
+              "hash": "da22465"
+            },
+            {
+              "text": "implement font selection and customization features",
+              "hash": "11db371"
+            },
+            {
+              "text": "add customizable code block toolbar styles and actions",
+              "hash": "801bd74"
+            },
+            {
+              "text": "enhance theme customization with scrollbar and size settings",
+              "hash": "7f3b1a4"
+            },
+            {
+              "text": "enhance theme customization with blockquote, metadata, table, and tag styles",
+              "hash": "47c06e4"
+            },
+            {
+              "text": "enhance theme editor with new color customization features",
+              "hash": "8eb800c"
+            },
+            {
+              "text": "implement menu density customization for improved UI spacing",
+              "hash": "cafb5fc"
+            },
+            {
+              "text": "add resizable navigation panel in settings",
+              "hash": "7bbc3bb"
+            },
+            {
+              "text": "enhance typography consistency across components",
+              "hash": "f9b8afb"
+            },
+            {
+              "text": "add paragraph spacing and code line height settings",
+              "hash": "4a4c801"
+            },
+            {
+              "text": "introduce custom SettingsSelect component for enhanced dropdown functionality",
+              "hash": "eb01098"
+            },
+            {
+              "text": "enhance code theme customization with new editor features",
+              "hash": "ff25a67"
+            },
+            {
+              "text": "添加 LazyVim 风格 Vim 模式支持",
+              "hash": "0f00db3"
+            },
+            {
+              "text": "implement appearance mode settings for enhanced theme customization",
+              "hash": "f555bfa"
+            },
+            {
+              "text": "TipTap 接入 vim-prose 实现完整 Vim 模态",
+              "hash": "4bbd2db"
+            },
+            {
+              "text": "implement theme pack import/export functionality for enhanced theme management",
+              "hash": "bbdecb3"
+            },
+            {
+              "text": "enhance sidebar styling with dynamic opacity controls",
+              "hash": "cc4f5dd"
+            },
+            {
+              "text": "enhance shortcut management and settings accessibility",
+              "hash": "3591dfa"
+            },
+            {
+              "text": "add macOS overlay chrome support for window styling",
+              "hash": "8d153c8"
+            },
+            {
+              "text": "improve macOS window styling and selection handling",
+              "hash": "7f464d1"
+            },
+            {
+              "text": "enhance theme settings and styling for improved user experience",
+              "hash": "d30b00f"
+            },
+            {
+              "text": "add Modern Dark theme to settings and styling",
+              "hash": "523a8d3"
+            },
+            {
+              "text": "enhance theme preview functionality and color extraction",
+              "hash": "e734217"
+            },
+            {
+              "text": "enhance theme deletion functionality and code sample support",
+              "hash": "2f73d58"
+            },
+            {
+              "text": "update sidebar topbar styling for macOS compatibility",
+              "hash": "53585bb"
+            },
+            {
+              "text": "添加 Markdown 表格操作与快捷键冲突处理",
+              "hash": "402bb31"
+            },
+            {
+              "text": "增强 Vim 模式并添加文件树键盘导航",
+              "hash": "f1feb66"
+            },
+            {
+              "text": "重构窗格导航为 tmux 风格方向查找",
+              "hash": "b508192"
+            },
+            {
+              "text": "增加分屏打开文件及 Leader 菜单兜底",
+              "hash": "2da3844"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "address selection issues in WKWebView by managing DOM selection",
+              "hash": "63c81c3"
+            },
+            {
+              "text": "enhance shortcut display and prevent text selection",
+              "hash": "65556c7"
+            },
+            {
+              "text": "resolve broken imports and unbalanced braces from strip-style PR",
+              "hash": "da2cd53"
+            },
+            {
+              "text": "安全访问 TipTap EditorView 并优化大纲解析",
+              "hash": "fd324f9"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "update sidebar behavior and styling for macOS",
+              "hash": "af186d1"
+            },
+            {
+              "text": "update code block toolbar and styling",
+              "hash": "cb0b885"
+            },
+            {
+              "text": "improve code block toolbar functionality and styling",
+              "hash": "7966175"
+            },
+            {
+              "text": "improve user selection handling across stylesheets",
+              "hash": "0329984"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "add package-lock.json to .gitignore",
+              "hash": "60e78fb"
+            },
+            {
+              "text": "restore package-lock.json and track it again",
+              "hash": "00d1808"
+            },
+            {
+              "text": "update package-lock.json to include peer dependencies for various packages",
+              "hash": "3261f29"
+            },
+            {
+              "text": "add .gitattributes for consistent line endings and file type handling",
+              "hash": "f33b77a"
+            },
+            {
+              "text": "format tsconfig.json for improved readability",
+              "hash": "cb44d21"
+            },
+            {
+              "text": "发布 0.2.3 版本",
+              "hash": "f0578ba"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.2",
+      "date": "2026-08-27",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "支持 Ctrl+\\ 和 Ctrl+- 分屏打开文件",
+              "hash": "2ad7903"
+            },
+            {
+              "text": "add integrated terminal pane with xterm.js",
+              "hash": "689fe3e"
+            },
+            {
+              "text": "优化启动体验并增加启动埋点",
+              "hash": "991cea4"
+            },
+            {
+              "text": "优化终端默认 shell 探测逻辑并增加快速检查待打开文件功能",
+              "hash": "d18aed5"
+            },
+            {
+              "text": "更新版本号至 0.2.2 并添加安全性和安装徽章",
+              "hash": "1a338f3"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "重构工作流以按平台分组上传资源并修复分屏与快捷键冲突",
+              "hash": "86d002e"
+            },
+            {
+              "text": "修复多行粘贴文本切换标题时整段变标题的问题",
+              "hash": "64d4faf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "date": "2026-08-25",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "Enhance CodeMirror and TipTap editors with selection handling and scroll adjustments",
+              "hash": "447c9d7"
+            },
+            {
+              "text": "添加定位当前文件按钮",
+              "hash": "9f8f472"
+            },
+            {
+              "text": "添加文件/知识库搜索标签切换与新窗口打开",
+              "hash": "b2e104d"
+            },
+            {
+              "text": "支持多窗格分屏与共享缓冲",
+              "hash": "b8b0cbe"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "优化悬停预览并修复代码块误转换",
+              "hash": "787c93a"
+            },
+            {
+              "text": "优化打字机模式光标居中逻辑",
+              "hash": "f844c82"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布 0.2.1 版本",
+              "hash": "7d69e5e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-08-21",
+      "released": true,
+      "groups": [
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复 IR 模式下任务列表切换到源码模式时出现多余空行",
+              "hash": "38bfad0"
+            },
+            {
+              "text": "修复数学公式装饰器范围添加顺序错误",
+              "hash": "ea6526a"
+            },
+            {
+              "text": "修复预览面板点击关闭逻辑和布局对齐",
+              "hash": "d11dcfa"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "优化全屏预览卡片布局与缩放逻辑，提升用户体验",
+              "hash": "58bfa04"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "更新版本号至 0.2.0",
+              "hash": "82dbf83"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.9",
+      "date": "2026-08-20",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "支持 Gradle 代码高亮",
+              "hash": "1039d55"
+            },
+            {
+              "text": "添加 Star History 部分到 README 文档",
+              "hash": "8a244ef"
+            },
+            {
+              "text": "添加在终端打开路径功能",
+              "hash": "924ff4f"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复字号校验误报并添加字号提示",
+              "hash": "e91fed4"
+            }
+          ]
+        },
+        {
+          "group": "perf",
+          "items": [
+            {
+              "text": "按需加载窗口与重依赖，优化启动性能",
+              "hash": "b6793b2"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "优化图片缓存与发布 CLI 查找",
+              "hash": "8f83df0"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "更新版本号至 0.1.9",
+              "hash": "9b52eef"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.8",
+      "date": "2026-08-18",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "支持文件关联打开与小红书图文导出",
+              "hash": "44a467d"
+            },
+            {
+              "text": "支持微软商店版切换至 GitHub 更新通道",
+              "hash": "ddaec8e"
+            },
+            {
+              "text": "添加便携版更新与文件复制功能",
+              "hash": "58fa33d"
+            },
+            {
+              "text": "编辑器窗口位置记忆、Markdown 行中输入规则及思维导图按钮定位优化",
+              "hash": "f01bb67"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "优化移动端导航和响应式布局",
+              "hash": "3ee996a"
+            },
+            {
+              "text": "修复移动端导航菜单显示问题",
+              "hash": "e376224"
+            },
+            {
+              "text": "防止向已销毁窗口发消息引发 PostMessage 错误",
+              "hash": "23c4546"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "更新中英文 README 内容",
+              "hash": "19aa6f7"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布 0.1.8 版本",
+              "hash": "68bf54e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.7",
+      "date": "2026-08-14",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加匿名使用统计（Umami）与首次启动同意机制",
+              "hash": "d05fc7c"
+            },
+            {
+              "text": "文件树右键菜单添加图标",
+              "hash": "b530af1"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "修复地图指南画布中的文件路径",
+              "hash": "dea1e56"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "添加网站分析脚本并优化标签间距",
+              "hash": "7813b97"
+            },
+            {
+              "text": "发布 0.1.7 版本",
+              "hash": "b41932c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.6",
+      "date": "2026-08-12",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "更新产品描述文案和样式",
+              "hash": "c372345"
+            },
+            {
+              "text": "优化 DOCX 导出样式并修复多项 UI 问题",
+              "hash": "f3e118f"
+            },
+            {
+              "text": "文件夹重命名/移动时同步更新 wiki 链接和图片路径",
+              "hash": "c920787"
+            },
+            {
+              "text": "添加国际化支持并更新版本至 0.1.6",
+              "hash": "a6b22f1"
+            },
+            {
+              "text": "支持中英文双语文档站点与快捷键集中配置",
+              "hash": "653fe87"
+            },
+            {
+              "text": "添加 LaTeX 数学公式支持",
+              "hash": "5fd3dc5"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复 QuickOpen 组件属性缺失和未使用变量清理",
+              "hash": "a3829a6"
+            },
+            {
+              "text": "修复英文落地页图片路径并完善构建脚本",
+              "hash": "6571e3d"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "重命名Math扩展导入以避免命名冲突",
+              "hash": "3785280"
+            }
+          ]
+        },
+        {
+          "group": "ci",
+          "items": [
+            {
+              "text": "修复 git-cliff 参数，根据触发方式动态选择参数",
+              "hash": "c002dbe"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "将文档国际化并添加剪贴板管理器插件",
+              "hash": "44c590f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.5",
+      "date": "2026-08-09",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加 @ 符号触发的自动补全支持",
+              "hash": "4fc1d0e"
+            },
+            {
+              "text": "move toolbar to titlebar and use native save dialog for export",
+              "hash": "9356494"
+            },
+            {
+              "text": "优化导出HTML的样式与图片内联逻辑",
+              "hash": "1203bb9"
+            },
+            {
+              "text": "add Microsoft Store MSIX packaging and publishing workflow",
+              "hash": "1628e1c"
+            },
+            {
+              "text": "新增微信公众号复制导出功能",
+              "hash": "a586862"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复大文件导出时触发堆损坏的问题",
+              "hash": "311e69a"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "重构文档结构，新增微软商店发布文档并调整目录",
+              "hash": "679fc2e"
+            }
+          ]
+        },
+        {
+          "group": "build",
+          "items": [
+            {
+              "text": "新增微软商店MSIX打包支持，完善隐私策略文档",
+              "hash": "0011dc6"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布 v0.1.5",
+              "hash": "e672a57"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.4",
+      "date": "2026-08-07",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "使用git-cliff自动生成发布说明并更新依赖",
+              "hash": "9e98d38"
+            },
+            {
+              "text": "将打字机模式和编辑器宽度/行高迁移至通用设置",
+              "hash": "a55c321"
+            },
+            {
+              "text": "add find and replace functionality",
+              "hash": "3453011"
+            },
+            {
+              "text": "增强更多菜单与查找替换功能",
+              "hash": "fa06f56"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复版本号显示与链接打开方式",
+              "hash": "c15f68c"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "优化代码与添加配置项",
+              "hash": "a58d99e"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "补充版本决策规则文档",
+              "hash": "ecea57b"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "release tydora 0.2.0",
+              "hash": "da79459"
+            },
+            {
+              "text": "将版本号提升至 0.2.0",
+              "hash": "41b4c99"
+            },
+            {
+              "text": "降级版本号至 0.1.3 并配置 release-please",
+              "hash": "d02b4a5"
+            },
+            {
+              "text": "发布 v0.1.4",
+              "hash": "1e7dcc8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.3",
+      "date": "2026-08-06",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加文档导出功能及工具栏优化",
+              "hash": "eb51d56"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "优化PDF导出分页算法与预览样式",
+              "hash": "9d3cba8"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "统一代码块内容传递格式",
+              "hash": "3711173"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "清理废弃的文档和页面样式",
+              "hash": "17bdf9f"
+            },
+            {
+              "text": "bump version to 0.1.3",
+              "hash": "c5a6539"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.2",
+      "date": "2026-08-03",
+      "released": true,
+      "groups": [
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "重构文档目录结构与内容",
+              "hash": "136baad"
+            },
+            {
+              "text": "更新文档内容与图片路径",
+              "hash": "e2aa27a"
+            },
+            {
+              "text": "整理文档结构与修复路径链接",
+              "hash": "f014d80"
+            },
+            {
+              "text": "清理废弃的文档文件和导航链接",
+              "hash": "62a42d7"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "修复思维导图节点内元素对齐问题",
+              "hash": "e57b8ee"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "release version 0.1.2, add markdown file association and open file handler",
+              "hash": "69bd42e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.1",
+      "date": "2026-07-30",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "add full tag editing feature including autocomplete and index",
+              "hash": "a7901cf"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "优化空格补全逻辑，区分空query场景",
+              "hash": "cf21a95"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "优化文档格式并更新落地页脚本",
+              "hash": "00010b3"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "add window control divider and fix more button icon",
+              "hash": "894236b"
+            },
+            {
+              "text": "优化编辑器模拟UI的排版与显示效果",
+              "hash": "93b1a97"
+            }
+          ]
+        },
+        {
+          "group": "build",
+          "items": [
+            {
+              "text": "优化发布构建配置并添加多平台包支持",
+              "hash": "9153d46"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "sync app version to 0.0.11 across all files",
+              "hash": "2c8fc70"
+            },
+            {
+              "text": "bump version to 0.1.1 and update related version references",
+              "hash": "89252cc"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.11",
+      "date": "2026-07-28",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加新的主题（Slate 和 Ocean），更新主题管理器和相关样式",
+              "hash": "0cff694"
+            },
+            {
+              "text": "更新文档部署工作流，使用 Node.js 替代 Python，简化构建过程并添加落地页复制脚本",
+              "hash": "55abfab"
+            },
+            {
+              "text": "add initial documentation and landing page for Tydora",
+              "hash": "946fd9c"
+            },
+            {
+              "text": "重写落地页复制脚本，直接生成 HTML 内容并写入目标文件",
+              "hash": "280807a"
+            },
+            {
+              "text": "add support for LXGW XinXiHei font",
+              "hash": "e90ae73"
+            },
+            {
+              "text": "支持frontmatter并更新文档画布",
+              "hash": "9b13c19"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "improve nested preview behavior and add dismiss-on-scroll",
+              "hash": "0e32df7"
+            },
+            {
+              "text": "inline landing page HTML in copy-landing script and fix /index/ trailing slash",
+              "hash": "c76fa3e"
+            },
+            {
+              "text": "build docs in CI, set baseHref to /Tydora/, use relative paths in landing page",
+              "hash": "0781e6f"
+            },
+            {
+              "text": "use --config flag (not -c) and fix vaultDir/out paths relative to CWD",
+              "hash": "8908f86"
+            },
+            {
+              "text": "依赖缺失",
+              "hash": "c224d7c"
+            },
+            {
+              "text": "修正预览图片的源文件路径",
+              "hash": "593ff42"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "优化导航与链接，统一页面样式",
+              "hash": "6a03b91"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "将 commit-code skill 内容翻译为中文",
+              "hash": "a7b5cb9"
+            },
+            {
+              "text": "remove tagline from README subtitle",
+              "hash": "2a4ea4c"
+            },
+            {
+              "text": "replace docs preview with screenshot, add image preview styles",
+              "hash": "de0c09a"
+            },
+            {
+              "text": "更新官网副标题和版权年份",
+              "hash": "300c26b"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "重构导航栏并完善页面样式",
+              "hash": "53fbe92"
+            },
+            {
+              "text": "优化落地页代码预览组件样式与结构",
+              "hash": "4a531d8"
+            },
+            {
+              "text": "更新首页代码预览为文档预览样式",
+              "hash": "c303265"
+            },
+            {
+              "text": "修复侧边栏折叠时顶部被遮挡的问题",
+              "hash": "3c0d749"
+            }
+          ]
+        },
+        {
+          "group": "ci",
+          "items": [
+            {
+              "text": "trigger deploy on copy-landing.mjs changes",
+              "hash": "e2d4278"
+            },
+            {
+              "text": "为npm ci添加legacy-peer-deps参数并降级tiptap扩展版本",
+              "hash": "517efd6"
+            },
+            {
+              "text": "替换npm ci为npm install",
+              "hash": "5905587"
+            },
+            {
+              "text": "替换npm install为npm ci并更新依赖",
+              "hash": "649ca1e"
+            }
+          ]
+        },
+        {
+          "group": "build",
+          "items": [
+            {
+              "text": "add base href tag for correct resource loading",
+              "hash": "3561c71"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "add landing page icon",
+              "hash": "afeb5c2"
+            },
+            {
+              "text": "add favicon and update docs and build script",
+              "hash": "cddfe21"
+            },
+            {
+              "text": "移除旧的发布工作流并添加文档白板画布文件",
+              "hash": "c347cc3"
+            },
+            {
+              "text": "bump version to 0.0.11",
+              "hash": "aa099a6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.10",
+      "date": "2026-07-24",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "新增多项功能与样式优化",
+              "hash": "548865e"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "调整样式与滚轮交互逻辑",
+              "hash": "6cce2e7"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "bump version to 0.0.10",
+              "hash": "935b075"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.9",
+      "date": "2026-07-23",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "新增画布缩放时自动隐藏节点内容的功能",
+              "hash": "dc3c31f"
+            },
+            {
+              "text": "优化画布交互体验，新增文本滚动和拖拽平移功能",
+              "hash": "2b27765"
+            },
+            {
+              "text": "add file navigation history and more dropdown menu",
+              "hash": "3b65ad5"
+            },
+            {
+              "text": "新增维基链接悬停预览、图谱新窗口设置与canvas文件支持",
+              "hash": "2a7f12d"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "切换文件时重置编辑器滚动位置",
+              "hash": "d91a0ac"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "调整侧边栏、分组节点样式，优化画布连线渲染",
+              "hash": "9ae8265"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "版本号升级至0.0.9",
+              "hash": "9cf4bbc"
+            },
+            {
+              "text": "bump version to 0.0.9 and clean up titlebar controls",
+              "hash": "cb1b611"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.8",
+      "date": "2026-07-17",
+      "released": true,
+      "groups": [
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "重构多项功能并修复交互细节",
+              "hash": "b0b58c8"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布v0.0.8版本并统一版本管理",
+              "hash": "709b60b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.7",
+      "date": "2026-07-16",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加链接更新对话框，支持批量更新受影响的内部链接",
+              "hash": "578ab03"
+            },
+            {
+              "text": "添加树形图标间隔，优化侧边栏标签切换功能",
+              "hash": "bfceaf1"
+            },
+            {
+              "text": "enhance file handling and editor functionality",
+              "hash": "bcea294"
+            },
+            {
+              "text": "新增白板功能，添加多类型画布节点与窗口支持",
+              "hash": "44925f0"
+            },
+            {
+              "text": "add bookmarks management panel and service",
+              "hash": "9056a76"
+            },
+            {
+              "text": "新增主题管理、维基链接、图谱、发布等多项核心功能",
+              "hash": "7c67261"
+            },
+            {
+              "text": "新增多项功能并优化现有体验",
+              "hash": "06a3ac9"
+            },
+            {
+              "text": "新增仓库管理功能，优化画布节点交互体验",
+              "hash": "fd1897c"
+            },
+            {
+              "text": "新增链接节点支持与页面标题抓取功能",
+              "hash": "086928e"
+            },
+            {
+              "text": "add viewport move toolbar auto hide/show logic",
+              "hash": "3b7a321"
+            },
+            {
+              "text": "add zoom limit controls and inline link input",
+              "hash": "4c807d6"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "sync Cargo.toml version to 0.0.6, update fallback version",
+              "hash": "edb75d8"
+            },
+            {
+              "text": "修复节点拖拽被 resize 手柄误拦截的问题",
+              "hash": "47b0d41"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "use Tauri PackageInfo for version, single source of truth is tauri.conf.json",
+              "hash": "2d5926e"
+            },
+            {
+              "text": "重构项目目录与导入路径，新增白板功能模块",
+              "hash": "3bee069"
+            },
+            {
+              "text": "统一思维导图图标并新增白板功能",
+              "hash": "fd27e59"
+            },
+            {
+              "text": "调整主题文件目录结构并导出相关模块",
+              "hash": "a5d178a"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "remove outdated screenshot section from README",
+              "hash": "7276626"
+            }
+          ]
+        },
+        {
+          "group": "style",
+          "items": [
+            {
+              "text": "优化侧边栏和按钮的样式细节",
+              "hash": "3282fad"
+            },
+            {
+              "text": "更新 Mint 主题边框颜色",
+              "hash": "7ed5798"
+            }
+          ]
+        },
+        {
+          "group": "build",
+          "items": [
+            {
+              "text": "更新所有应用图标资源",
+              "hash": "91af479"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "发布版本0.0.7并修复节点交互问题",
+              "hash": "eafb5a5"
+            },
+            {
+              "text": "bump tydora version to 0.0.7",
+              "hash": "944bc30"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.6",
+      "date": "2026-07-08",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "add knowledge graph, backlinks, and various improvements",
+              "hash": "ce9d302"
+            },
+            {
+              "text": "新增多项功能并优化多处细节",
+              "hash": "fbce9e2"
+            },
+            {
+              "text": "add mobile navigation overlay and docs for auto update",
+              "hash": "ccaa552"
+            },
+            {
+              "text": "add PublishPanel and PublishService for website publishing functionality",
+              "hash": "56f6f72"
+            },
+            {
+              "text": "add table floating toolbar and fix code block editing",
+              "hash": "f0d32df"
+            },
+            {
+              "text": "增加表格浮动工具栏的网格选择功能和样式调整",
+              "hash": "4dbd97a"
+            },
+            {
+              "text": "新增链接弹窗、表格工具栏优化与多项编辑器改进",
+              "hash": "94172c1"
+            },
+            {
+              "text": "添加callout提示框、frontmatter支持与快捷键优化",
+              "hash": "27c2448"
+            },
+            {
+              "text": "新增Mermaid图表支持功能",
+              "hash": "60b898e"
+            },
+            {
+              "text": "add fullscreen preview functionality for mermaid charts",
+              "hash": "fc8fd13"
+            },
+            {
+              "text": "add remote image proxy support, fix editor undo/redo and placeholder",
+              "hash": "90b0cae"
+            },
+            {
+              "text": "添加高亮格式支持，优化快捷键与编辑器逻辑",
+              "hash": "3082f2e"
+            },
+            {
+              "text": "新增代码编辑器支持，完善主题与快捷键适配",
+              "hash": "51fc0ce"
+            },
+            {
+              "text": "添加YAML语言支持与WikiLink双向链接增强",
+              "hash": "45cd383"
+            },
+            {
+              "text": "在构建完成后执行 postbuild 脚本以注入落地页样式",
+              "hash": "47a0a42"
+            },
+            {
+              "text": "调整侧边栏和编辑器样式，优化树节点的缩进和交互效果",
+              "hash": "467458f"
+            },
+            {
+              "text": "调整复选框样式，增加大小和圆角，优化选中状态的视觉效果",
+              "hash": "ea32ad8"
+            },
+            {
+              "text": "添加保存状态指示器，使用红绿灯效果显示文件状态",
+              "hash": "eb0c650"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "重构编辑器核心功能，迁移至 CodeMirror 并优化多模块",
+              "hash": "860226f"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "完成帮助文档站点的知识图谱功能开发",
+              "hash": "7fbacea"
+            },
+            {
+              "text": "更新帮助文档内容与部署配置",
+              "hash": "364d7a1"
+            },
+            {
+              "text": "修复移动端导航菜单样式与交互问题",
+              "hash": "0acf63b"
+            }
+          ]
+        },
+        {
+          "group": "ci",
+          "items": [
+            {
+              "text": "移除release构建中tauri密钥的空值判断",
+              "hash": "f25bd78"
+            },
+            {
+              "text": "简化Tauri签名密钥的环境变量设置方式",
+              "hash": "37b2227"
+            },
+            {
+              "text": "修复Tauri签名密钥的环境变量注入格式",
+              "hash": "f1aa8ab"
+            }
+          ]
+        },
+        {
+          "group": "build",
+          "items": [
+            {
+              "text": "配置多平台构建和打包参数",
+              "hash": "ceeaddd"
+            },
+            {
+              "text": "add signing config and wrap tauri command",
+              "hash": "85789f6"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "完成 Tydora 帮助文档系统搭建与主题清理",
+              "hash": "2e2429d"
+            },
+            {
+              "text": "重构官网并更新本地化文案，替换旧预览图",
+              "hash": "6410cde"
+            },
+            {
+              "text": "完善多平台发布支持与页面样式优化",
+              "hash": "da489a7"
+            },
+            {
+              "text": "官网改版优化与清理",
+              "hash": "c8ded08"
+            },
+            {
+              "text": "完成 Notion-like 编辑器核心功能开发与错误修复",
+              "hash": "2aeb848"
+            },
+            {
+              "text": "bump version to 0.0.6, add tag trigger to release workflow",
+              "hash": "bc79c12"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.5",
+      "date": "2026-06-25",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加全套应用图标并重构UI交互",
+              "hash": "bf300f0"
+            },
+            {
+              "text": "完成Tydora编辑器第一阶段功能迭代",
+              "hash": "67eaa23"
+            },
+            {
+              "text": "添加全局搜索、命令面板与多窗口支持，重构快捷键与编辑器能力",
+              "hash": "6979221"
+            },
+            {
+              "text": "add auto-save, welcome hint and improve sidebar toggle button style",
+              "hash": "e072d48"
+            },
+            {
+              "text": "新增思维导图功能与图片管理系统",
+              "hash": "fd7a639"
+            },
+            {
+              "text": "新增多项功能并优化界面与文件处理流程",
+              "hash": "e56d669"
+            },
+            {
+              "text": "添加液态玻璃主题并优化快捷键与UI细节",
+              "hash": "a6a0184"
+            },
+            {
+              "text": "优化关于页面样式与快捷键逻辑",
+              "hash": "ae199d6"
+            },
+            {
+              "text": "发布0.1.0正式版，新增自动更新、自定义主题和编辑器配置",
+              "hash": "0f5b4e4"
+            }
+          ]
+        },
+        {
+          "group": "refactor",
+          "items": [
+            {
+              "text": "重构编辑器交互，优化快捷键与窗口控件",
+              "hash": "4636917"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

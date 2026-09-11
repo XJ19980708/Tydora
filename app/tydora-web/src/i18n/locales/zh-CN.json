@@ -547,6 +547,25 @@
       "github": "GitHub",
       "visitRepo": "访问 GitHub 仓库",
       "feedback": "问题反馈",
+      "releaseNotesTitle": "版本更新说明",
+      "releaseNotesView": "查看更新说明",
+      "releaseNotesCurrent": "当前版本",
+      "releaseNotesUnreleased": "未发布",
+      "releaseNotesEmpty": "暂无更新说明",
+      "releaseNotesGeneratedAt": "数据生成于 {{date}}",
+      "releaseNotesGroups": {
+        "feat": "新功能",
+        "fix": "问题修复",
+        "perf": "性能优化",
+        "refactor": "代码重构",
+        "docs": "文档",
+        "style": "代码样式",
+        "test": "测试",
+        "ci": "持续集成",
+        "build": "构建",
+        "chore": "其他改动",
+        "other": "其他"
+      },
       "updateFailed": "更新失败:"
     },
     "vim": {

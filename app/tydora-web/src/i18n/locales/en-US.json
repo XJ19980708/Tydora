@@ -547,6 +547,25 @@
       "github": "GitHub",
       "visitRepo": "Visit GitHub Repository",
       "feedback": "Feedback",
+      "releaseNotesTitle": "Release Notes",
+      "releaseNotesView": "View release notes",
+      "releaseNotesCurrent": "Current",
+      "releaseNotesUnreleased": "Unreleased",
+      "releaseNotesEmpty": "No release notes available",
+      "releaseNotesGeneratedAt": "data generated on {{date}}",
+      "releaseNotesGroups": {
+        "feat": "Features",
+        "fix": "Bug Fixes",
+        "perf": "Performance",
+        "refactor": "Refactoring",
+        "docs": "Documentation",
+        "style": "Styling",
+        "test": "Testing",
+        "ci": "CI/CD",
+        "build": "Build System",
+        "chore": "Chores",
+        "other": "Other"
+      },
       "updateFailed": "Update failed:"
     },
     "vim": {

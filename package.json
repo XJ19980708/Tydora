@@ -19,6 +19,8 @@
     "cli:test": "cd app && cargo test --bin tydora-cli",
     "cli:run": "cd app && cargo run --bin tydora-cli --",
     "sync-version": "node scripts/sync-version.mjs",
+    "release-notes": "node scripts/build-release-notes.mjs",
+    "prebuild": "node scripts/build-release-notes.mjs",
     "docs:build": "node scripts/build-docs.mjs",
     "deploy:edgeone": "node scripts/deploy-edgeone.mjs",
     "docs:serve": "node website/site/__preview_server.cjs",

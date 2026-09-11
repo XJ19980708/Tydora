@@ -33,6 +33,7 @@ import { useLanguage } from "./i18n/LanguageContext";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { FontPicker } from "./components/FontPicker";
 import { SettingsSelect } from "./components/SettingsSelect";
+import ReleaseNotesDialog from "./components/ReleaseNotesDialog";
 import { normalizeCodeFontValue, normalizeEditorFontValue } from "./utils/systemFonts";
 import {
   applyMenuDensity,
@@ -2680,6 +2681,7 @@ function AboutSettingsContent() {
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
   const [analyticsEnabled, setAnalyticsState] = useState<boolean>(() => isAnalyticsEnabled());
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
 
   useEffect(() => {
     invoke<string>("get_app_version").then(setVersion).catch(() => setVersion(""));
@@ -2740,6 +2742,13 @@ function AboutSettingsContent() {
       <div className="settings-item">
         <label className="settings-item-label">{t("settings.about.versionInfo")}</label>
         <span className="settings-about-value">{version ? `v${version}` : t("settings.about.loading")}</span>
+      </div>
+
+      <div className="settings-item">
+        <label className="settings-item-label">{t("settings.about.releaseNotesTitle")}</label>
+        <button className="settings-button" onClick={() => setReleaseNotesOpen(true)}>
+          {t("settings.about.releaseNotesView")}
+        </button>
       </div>
 
       {storeVersion && (
@@ -2810,6 +2819,12 @@ function AboutSettingsContent() {
           Report an Issue
         </span>
       </div>
+
+      <ReleaseNotesDialog
+        open={releaseNotesOpen}
+        onClose={() => setReleaseNotesOpen(false)}
+        currentVersion={version}
+      />
     </div>
   );
 }
