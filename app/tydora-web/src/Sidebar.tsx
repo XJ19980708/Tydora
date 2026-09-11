@@ -148,6 +148,10 @@ interface SidebarProps {
   graphViewOpen?: boolean;
   /** 把某个 tab 移到左/右侧栏（拖拽跨栏时触发） */
   onMoveTabToSide?: (tab: SidebarTab, side: "left" | "right") => void;
+  /** 打开"管理仓库"模态弹框 */
+  onManageVaults?: () => void;
+  /** 打开"设置"模态弹框 */
+  onOpenSettings?: () => void;
 }
 
 interface ContextMenuItem {
@@ -3377,12 +3381,16 @@ function VaultSwitcher({
   onRemove,
   onPublish,
   onSelectVault,
+  onManageVaults,
+  onOpenSettings,
 }: {
   vaults: VaultInfo[];
   activeIndex: number;
   onRemove: (index: number) => void;
   onPublish: () => void;
   onSelectVault: (index: number) => void;
+  onManageVaults?: () => void;
+  onOpenSettings?: () => void;
 }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -3403,13 +3411,9 @@ function VaultSwitcher({
     return () => document.removeEventListener("click", handler);
   }, [menuOpen]);
 
-  const handleOpenSettings = useCallback(async () => {
-    try {
-      await invoke("open_settings_window");
-    } catch (err) {
-      console.error(i18n.t("sidebar.error.openSettingsFailed"), err);
-    }
-  }, []);
+  const handleOpenSettings = useCallback(() => {
+    onOpenSettings?.();
+  }, [onOpenSettings]);
 
   const vaultSvgIcon = (
     <svg className="vault-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -3423,7 +3427,7 @@ function VaultSwitcher({
     return (
       <div className="sidebar-footer">
         <div className="vault-empty-row">
-          <button className="vault-open-btn" onClick={() => invoke("open_vault_manager_window")}>
+          <button className="vault-open-btn" onClick={() => onManageVaults?.()}>
             {vaultSvgIcon}
             <span className="vault-name">{t("sidebar.vault.manage")}</span>
           </button>
@@ -3510,7 +3514,7 @@ function VaultSwitcher({
             className="vault-menu-item vault-menu-manage"
             onClick={() => {
               setMenuOpen(false);
-              invoke("open_vault_manager_window");
+              onManageVaults?.();
             }}
           >
             <svg className="vault-menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -3581,6 +3585,10 @@ export default function Sidebar({
   onOpenGlobalGraph,
   graphViewOpen = false,
   onMoveTabToSide,
+  /** 打开"管理仓库"（主窗口内的模态弹框） */
+  onManageVaults,
+  /** 打开"设置"（主窗口内的模态弹框） */
+  onOpenSettings,
 }: SidebarProps) {
   bootStart("sidebar_component_render");
   bootStamp("sidebar_component_entered");
@@ -4156,6 +4164,8 @@ export default function Sidebar({
         onRemove={onRemoveVault}
         onPublish={onPublish}
         onSelectVault={onSelectVault}
+        onManageVaults={onManageVaults}
+        onOpenSettings={onOpenSettings}
       />
 
       {!collapsed && (

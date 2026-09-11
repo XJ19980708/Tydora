@@ -16,6 +16,10 @@ const TerminalView = lazy(() => import("./Terminal/TerminalView").then(m => ({ d
 import { killTerminal, unregisterTerminal } from "./Terminal/terminalApi";
 import { startTerminalSettingsSync } from "./Terminal/terminal-settings";
 import Sidebar, { VaultInfo } from "./Sidebar";
+import VaultManagerModal from "./VaultManager/VaultManagerModal";
+import AppModal from "./components/AppModal";
+import appIcon from "./assets/icon.png";
+const Settings = lazy(() => import("./Settings"));
 import { FileTreeVim, useWindowNavigation, useVim, useLeader, LeaderMenu } from "./vim";
 import { collectPaneIds, findAdjacentPane } from "./vim/panes";
 import type { SplitNode, PaneLeaf, SplitGroup } from "./vim/panes";
@@ -31,7 +35,7 @@ import { ExportPreviewDialog } from "./components/ExportPreviewDialog";
 import { XhsPreviewPanel } from "./export/xiaohongshu";
 import { emit, listen } from "@tauri-apps/api/event";
 import { loadImageSettings, type ImageSettings } from "./services";
-import { loadEditorSettings, type EditorSettings, EDITOR_SETTINGS_KEY, SHORTCUTS_KEY, GRAPH_SETTINGS_KEY, DEFAULT_GRAPH, type SidebarTab, type SidebarSide, type SidebarTabPlacement, sidebarTabsForSide, DEFAULT_GENERAL } from "./Settings";
+import { loadEditorSettings, type EditorSettings, EDITOR_SETTINGS_KEY, SHORTCUTS_KEY, GRAPH_SETTINGS_KEY, DEFAULT_GRAPH, type SidebarTab, type SidebarSide, type SidebarTabPlacement, sidebarTabsForSide, DEFAULT_GENERAL, TOGGLE_SIDEBAR_EVENT, TOGGLE_RIGHT_SIDEBAR_EVENT } from "./Settings";
 import { applyFontSettings } from "./utils/systemFonts";
 import { applyMenuDensity, applyEditorSpacingFromSettings, normalizeMenuDensity } from "./utils/menuDensity";
 import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isPortableVersion, type UpdateInfo } from "./services";
@@ -742,6 +746,16 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   // 可以最终决定主窗口可见性（避免竞态提前关闭）
   const [externalLaunchSettled, setExternalLaunchSettled] = useState(false);
   const [hasExternalFile, setHasExternalFile] = useState(false);
+  // "管理仓库"模态弹框（原独立窗口已改为弹框）
+  const [vaultManagerOpen, setVaultManagerOpen] = useState(false);
+  // "设置"模态弹框（原独立窗口已改为弹框）；settingsKey 每次打开自增，强制重挂载以应用 initial-tab
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsKey, setSettingsKey] = useState(0);
+  const openSettings = useCallback((tab?: string) => {
+    if (tab) localStorage.setItem("zmd-settings-initial-tab", tab);
+    setSettingsKey((k) => k + 1);
+    setSettingsOpen(true);
+  }, []);
   const [autoHideTopbar, setAutoHideTopbar] = useState(() => s.autoHideTopbar ?? false);
   const [autoHideTopbarOnCollapse, setAutoHideTopbarOnCollapse] = useState(() => s.autoHideTopbarOnCollapse ?? true);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
@@ -1049,42 +1063,20 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     }
 
     // 3) 无仓库分支：等 externalLaunchSettled 再做决策（防止"没仓库且也没外部文件"时，
-    //    管理仓库窗口过早抢焦点、或主窗口短暂出现后立刻消失引起闪烁）。
-    //    关键不同：主窗口仍已由上面 show() 显示，用户不会看到黑屏。
-    let cancelled = false;
-    (async () => {
-      // 通过事件订阅 or 轮询 settled：这里直接依赖 React state 的第二次渲染触发。
-      // 第一次渲染时 externalLaunchSettled=false，会走到下面的 early return；
-      // 当 setState(true) 后 effect 重新运行，此时才进入 settled 分支。
-    })();
+    //    管理仓库弹框过早抢焦点）。
+    //    第一次渲染时 externalLaunchSettled=false，会走到下面的 early return；
+    //    当 setState(true) 后 effect 重新运行，此时才进入 settled 分支。
 
     if (!externalLaunchSettled) return;
     if (hasExternalFile) return;
 
-    // 4) settled=true 且确实没有任何外部文件 → 打开管理仓库窗口 + 关闭主窗口
-    (async () => {
-      try {
-        bootStart("visibility_no_vault_path");
-        bootStamp("visibility_no_vault_before_open_vault_manager");
-        await invoke("open_vault_manager_window");
-        bootStamp("visibility_no_vault_after_open_vault_manager");
-        if (cancelled) return;
-        await invoke("notify_main_closing");
-        bootStamp("visibility_no_vault_after_notify_closing");
-        await win.close();
-        bootStamp("visibility_no_vault_after_close");
-        bootEnd("visibility_no_vault_path");
-      } catch (e) {
-        bootStamp("visibility_no_vault_catch_show_fallback");
-        bootEnd("visibility_no_vault_path");
-        console.error("打开管理仓库窗口失败（主窗口保持可见）", e);
-        win.show().catch(() => {});
-        bootStamp("visibility_window_shown_via_fallback");
-        setTimeout(() => bootSummary(), 0);
-      }
-    })();
-
-    return () => { cancelled = true; };
+    // 4) settled=true 且确实没有任何外部文件 → 在主窗口内打开"管理仓库"模态弹框
+    //    （管理仓库已由独立窗口改为模态弹框，主窗口保持可见，不再关闭/通知关闭）
+    bootStart("visibility_no_vault_path");
+    bootStamp("visibility_no_vault_before_open_vault_manager");
+    setVaultManagerOpen(true);
+    bootStamp("visibility_no_vault_after_open_vault_manager");
+    bootEnd("visibility_no_vault_path");
   }, [externalLaunchSettled, hasExternalFile, vaults, initialFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 构建链接索引和标签索引（优化版：先缓存恢复 UI → 后台联合构建 → 统一持久化）
@@ -1946,28 +1938,50 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     setRightSidebarOpen((prev) => !prev);
   }, []);
 
-  // 切换侧栏快捷键（从 localStorage 读取，默认值来自 src/config/shortcuts.json）
+  // 侧栏折叠/展开快捷键：左侧 Alt+1、右侧 Alt+2
+  // （与设置-快捷键面板同源：默认值见 src/config/shortcuts.json，用户自定义存 localStorage）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      let shortcutKeys = shortcutsConfig.editor.find((s) => s.id === "toggle-sidebar")?.keys ?? ["Ctrl", "\\"];
-      try {
-        const saved = localStorage.getItem(SHORTCUTS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const item = parsed.find((s: { id: string }) => s.id === "toggle-sidebar");
-          if (item) shortcutKeys = item.keys;
-        }
-      } catch {}
-      const key = shortcutKeys.join("+").toLowerCase();
-      const eventKey = `${e.ctrlKey || e.metaKey ? "ctrl+" : ""}${e.altKey ? "alt+" : ""}${e.shiftKey ? "shift+" : ""}${e.key.toLowerCase()}`;
-      if (eventKey === key) {
+      const shortcuts = loadShortcuts();
+      if (matchShortcut(e, getShortcutKeys(shortcuts, "toggle-sidebar"))) {
         e.preventDefault();
         handleSidebarToggle();
+        return;
+      }
+      if (matchShortcut(e, getShortcutKeys(shortcuts, "toggle-right-sidebar"))) {
+        e.preventDefault();
+        handleRightSidebarToggle();
       }
     };
     window.addEventListener("keydown", handler, { capture: true });
     return () => window.removeEventListener("keydown", handler, { capture: true });
-  }, [handleSidebarToggle]);
+  }, [handleSidebarToggle, handleRightSidebarToggle]);
+
+  // 其他窗口（设置窗口）转发来的侧栏折叠/展开请求：
+  // 设置窗口是独立的 webview，主窗口收不到它的按键，这里通过全局事件接住
+  useEffect(() => {
+    let disposed = false;
+    let unlisteners: Array<() => void> = [];
+    (async () => {
+      try {
+        const fns = await Promise.all([
+          listen(TOGGLE_SIDEBAR_EVENT, () => handleSidebarToggle()),
+          listen(TOGGLE_RIGHT_SIDEBAR_EVENT, () => handleRightSidebarToggle()),
+        ]);
+        if (disposed) {
+          fns.forEach((fn) => fn());
+          return;
+        }
+        unlisteners = fns;
+      } catch {
+        // 事件系统不可用时（如纯 Web 预览环境）忽略
+      }
+    })();
+    return () => {
+      disposed = true;
+      unlisteners.forEach((fn) => fn());
+    };
+  }, [handleSidebarToggle, handleRightSidebarToggle]);
 
   const handleNewWindow = useCallback(async (filePath: string) => {
     try {
@@ -2636,28 +2650,23 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     return () => window.removeEventListener("keydown", handler);
   }, [handleClose, closePane, vimShouldTakeOver]);
 
-  // Ctrl+,（macOS：⌘+,）切换设置窗口；可在设置-快捷键中自定义
+  // Ctrl+,（macOS：⌘+,）开关设置弹框；可在设置-快捷键中自定义
+  const settingsOpenRef = useRef(false);
   useEffect(() => {
-    const handler = async (e: KeyboardEvent) => {
+    settingsOpenRef.current = settingsOpen;
+  }, [settingsOpen]);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
       const keys = getShortcutKeys(loadShortcuts(), "open-settings");
       const fallback = shortcutsConfig.app["open-settings"] ?? ["Ctrl", ","];
       if (!matchShortcut(e, keys.length ? keys : fallback)) return;
       e.preventDefault();
-      try {
-        const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-        const existing = await WebviewWindow.getByLabel("settings");
-        if (existing) {
-          await existing.close();
-        } else {
-          await invoke("open_settings_window");
-        }
-      } catch {
-        invoke("open_settings_window").catch(() => {});
-      }
+      if (settingsOpenRef.current) setSettingsOpen(false);
+      else openSettings();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [openSettings]);
 
   const toggleTypewriterMode = useCallback(() => {
     setTypewriterMode((prev: boolean) => !prev);
@@ -3377,6 +3386,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
     // 视图操作
     { id: "toggle-sidebar", label: t("app.command.labels.toggleSidebar"), category: t("app.command.categories.view"), shortcut: getCommandShortcut("toggle-sidebar"), action: handleSidebarToggle },
+    { id: "toggle-right-sidebar", label: t("app.command.labels.toggleRightSidebar"), category: t("app.command.categories.view"), shortcut: getCommandShortcut("toggle-right-sidebar"), action: handleRightSidebarToggle },
     { id: "toggle-mode", label: t("app.command.labels.toggleEditMode"), category: t("app.command.categories.view"), shortcut: getCommandShortcut("toggle-mode"), action: cycleMode },
     { id: "toggle-typewriter", label: t("app.command.labels.toggleTypewriter"), category: t("app.command.categories.view"), shortcut: getCommandShortcut("toggle-typewriter"), action: toggleTypewriterMode },
     { id: "split-lr", label: t("app.menu.splitLeftRight"), category: t("app.command.categories.view"), shortcut: getCommandShortcut("split-lr"), aliases: t("app.command.aliases.splitLeftRight").split(", "), action: () => { if (fileName && isCurrentFileMarkdown) handleSplit("lr"); else if (isActiveTerminal) handleSplit("lr"); } },
@@ -3394,7 +3404,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         setGraphViewOpen(true);
       }
     }},
-    { id: "open-vault", label: t("app.command.labels.vaultManager"), category: t("app.command.categories.view"), aliases: t("app.command.aliases.vaultManager").split(", "), action: () => invoke("open_vault_manager_window") },
+    { id: "open-vault", label: t("app.command.labels.vaultManager"), category: t("app.command.categories.view"), aliases: t("app.command.aliases.vaultManager").split(", "), action: () => setVaultManagerOpen(true) },
     // 已打开的知识仓库——输入仓库名称即可在新窗口打开
     ...vaults.map((vault) => ({
       id: `open-vault-window-${vault.path}`,
@@ -3458,25 +3468,16 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     { id: "close", label: t("app.command.labels.closeWindow"), category: t("app.command.categories.window"), action: handleClose },
 
     // 设置
-    { id: "open-settings", label: t("app.command.labels.openSettings"), category: t("app.command.categories.settings"), shortcut: getCommandShortcut("open-settings"), action: async () => {
-      try {
-        const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-        const existing = await WebviewWindow.getByLabel("settings");
-        if (existing) await existing.close();
-        else await invoke("open_settings_window");
-      } catch {
-        invoke("open_settings_window");
-      }
-    } },
-    { id: "settings-general", label: t("app.command.labels.generalSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.generalSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "general"); invoke("open_settings_window"); } },
-    { id: "settings-theme", label: t("app.command.labels.themeSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.themeSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "theme"); invoke("open_settings_window"); } },
-    { id: "settings-shortcuts", label: t("app.command.labels.shortcutSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.shortcutSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "shortcuts"); invoke("open_settings_window"); } },
-    { id: "settings-mindmap", label: t("app.command.labels.mindmapSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.mindmapSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "mindmap"); invoke("open_settings_window"); } },
-    { id: "settings-graph", label: t("app.command.labels.graphSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.graphSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "graph"); invoke("open_settings_window"); } },
-    { id: "settings-image", label: t("app.command.labels.imageSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.imageSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "image"); invoke("open_settings_window"); } },
-    { id: "settings-canvas", label: t("app.command.labels.canvasSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.canvasSettings").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "canvas"); invoke("open_settings_window"); } },
-    { id: "settings-about", label: t("app.command.labels.about"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.about").split(", "), action: () => { localStorage.setItem("zmd-settings-initial-tab", "about"); invoke("open_settings_window"); } },
-  ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish]);
+    { id: "open-settings", label: t("app.command.labels.openSettings"), category: t("app.command.categories.settings"), shortcut: getCommandShortcut("open-settings"), action: () => openSettings() },
+    { id: "settings-general", label: t("app.command.labels.generalSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.generalSettings").split(", "), action: () => openSettings("general") },
+    { id: "settings-theme", label: t("app.command.labels.themeSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.themeSettings").split(", "), action: () => openSettings("theme") },
+    { id: "settings-shortcuts", label: t("app.command.labels.shortcutSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.shortcutSettings").split(", "), action: () => openSettings("shortcuts") },
+    { id: "settings-mindmap", label: t("app.command.labels.mindmapSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.mindmapSettings").split(", "), action: () => openSettings("mindmap") },
+    { id: "settings-graph", label: t("app.command.labels.graphSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.graphSettings").split(", "), action: () => openSettings("graph") },
+    { id: "settings-image", label: t("app.command.labels.imageSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.imageSettings").split(", "), action: () => openSettings("image") },
+    { id: "settings-canvas", label: t("app.command.labels.canvasSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.canvasSettings").split(", "), action: () => openSettings("canvas") },
+    { id: "settings-about", label: t("app.command.labels.about"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.about").split(", "), action: () => openSettings("about") },
+  ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish, openSettings]);
 
   return (
     <div className="app">
@@ -3508,6 +3509,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
           onMoveTabToSide={moveSidebarTab}
           onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
           graphViewOpen={graphViewOpen}
+          onManageVaults={() => setVaultManagerOpen(true)}
+          onOpenSettings={() => openSettings()}
         />
 
         {/* 编辑区域 */}
@@ -4062,6 +4065,10 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
                 !hasExternalFile ? (
               <div className="editor-welcome">
                 <div className="welcome-hint">
+                  <div className="welcome-brand">
+                    <img src={appIcon} alt="Tydora" className="welcome-brand-icon" />
+                    <span className="welcome-brand-name">Tydora</span>
+                  </div>
                   <div className="welcome-hint-item">
                     <span>{t("app.welcome.openFile")}</span>
                     <kbd>{formatShortcutKey("Ctrl")}</kbd>
@@ -4261,6 +4268,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
             onMoveTabToSide={moveSidebarTab}
             onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
             graphViewOpen={graphViewOpen}
+            onManageVaults={() => setVaultManagerOpen(true)}
+            onOpenSettings={() => openSettings()}
           />
         )}
       </div>
@@ -4305,6 +4314,26 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         onClose={() => setCommandPaletteOpen(false)}
         commands={commands}
       />
+
+      {/* 管理仓库（模态弹框，替代原独立窗口） */}
+      <VaultManagerModal
+        open={vaultManagerOpen}
+        onClose={() => setVaultManagerOpen(false)}
+      />
+
+      {/* 设置（模态弹框，替代原独立窗口） */}
+      <AppModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        ariaLabel={t("app.command.labels.openSettings")}
+        closeTitle={t("settings.close")}
+        width="1040px"
+        height="700px"
+      >
+        <Suspense fallback={null}>
+          <Settings key={settingsKey} onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      </AppModal>
 
       <ConfirmDialog
         isOpen={saveConfirmOpen}
