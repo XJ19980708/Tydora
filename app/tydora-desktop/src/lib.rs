@@ -39,6 +39,51 @@ fn finish_macos_window(window: &tauri::WebviewWindow) {
     #[cfg(not(target_os = "macos"))]
     let _ = window;
 }
+
+/// Windows：修复窗口图标。
+///
+/// tao 把内存 RGBA 转成窗口图标时（`platform_impl/windows/icon.rs` 的
+/// `RgbaIcon::into_windows_icon`）用 `CreateIcon` 传 AND mask，但按"每像素 1 字节"
+/// 填充，而 Windows 要求 AND mask 是 1 bit/像素且每行按字对齐 —— 生成的图标蒙版
+/// 数据整体错位。多数渲染路径走 alpha 通道所以看起来正常，但 Windows 11 任务管理器
+/// 的窗口子项按蒙版合成，就会显示成黑白噪点花纹。
+///
+/// 修复方式：绕开 tao 的内存构造，改用 ExtractIconEx 从 exe 内嵌图标资源加载
+/// 格式正确的 HICON，覆盖窗口小图标，同时补上 tao 从未设置的任务栏大图标。
+/// （上游 tao 0.35 仍是同样实现，只能应用侧绕开。）
+#[cfg(target_os = "windows")]
+fn fix_window_icon(window: &tauri::WebviewWindow) {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::Shell::ExtractIconExW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        SendMessageW, ICON_BIG, ICON_SMALL, WM_SETICON,
+    };
+
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let exe_wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+
+    unsafe {
+        let mut large: [*mut core::ffi::c_void; 1] = [std::ptr::null_mut()];
+        let mut small: [*mut core::ffi::c_void; 1] = [std::ptr::null_mut()];
+        if ExtractIconExW(exe_wide.as_ptr(), 0, large.as_mut_ptr(), small.as_mut_ptr(), 1) == 0 {
+            // 提取失败时保留 tao 设置的图标，不影响功能
+            return;
+        }
+        let hwnd_raw = hwnd.0;
+        SendMessageW(hwnd_raw, WM_SETICON, ICON_SMALL as usize, small[0] as isize);
+        SendMessageW(hwnd_raw, WM_SETICON, ICON_BIG as usize, large[0] as isize);
+    }
+}
+
+/// 非 Windows 平台：窗口图标无需额外处理。
+#[cfg(not(target_os = "windows"))]
+fn fix_window_icon(_window: &tauri::WebviewWindow) {}
+
 use commands::watcher_commands::{watch_vault, unwatch_vault, WatcherState};
 use commands::remote_image::{fetch_remote_image, HttpClientState};
 use commands::proxy::{start_proxy_server, fetch_page_title};
@@ -231,6 +276,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     match settings_window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -294,6 +340,7 @@ fn spawn_editor_window(
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             let app_handle = app.clone();
             let fp = file_path.to_string();
             let lbl = label.clone();
@@ -358,6 +405,7 @@ async fn open_mindmap_window(
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -397,6 +445,7 @@ async fn open_graph_window(
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -442,6 +491,7 @@ async fn open_canvas_window(
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -494,6 +544,7 @@ async fn open_canvas_in_new_window(
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             let app_handle = app.clone();
             let cp = canvas_path.clone();
             let lbl = label.clone();
@@ -542,6 +593,7 @@ async fn open_vault_manager_window(app: tauri::AppHandle) -> Result<(), String> 
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -612,6 +664,7 @@ async fn open_vault_in_new_window(app: tauri::AppHandle, vault_path: String, wid
     match window {
         Ok(win) => {
             finish_macos_window(&win);
+            fix_window_icon(&win);
             Ok(())
         }
         Err(e) => Err(e.to_string()),
@@ -2024,6 +2077,7 @@ pub fn run() {
                         let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
                     }
                     finish_macos_window(&window);
+                    fix_window_icon(&window);
                     let _ = window.show();
                 }
                 emit_boot_timing(app, "main_window_shown");

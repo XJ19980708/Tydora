@@ -37,6 +37,16 @@ tokio = { version = "1", features = ["full"] }
 url = "2"
 fontdb = "0.23"
 
+# Windows：窗口图标修复需要 ExtractIconEx / WM_SETICON
+# （tao 用 CreateIcon 从内存 RGBA 构造窗口图标时 AND mask 格式错误，
+#   导致任务管理器等按蒙版渲染的位置显示噪点花纹；这里改从 exe 资源加载）
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
 # macOS 原生窗口圆角（CALayer），避免 CSS overflow+radius 触发 WKWebView 幽灵选区
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { version = "0.6", default-features = false, features = ["std"] }
