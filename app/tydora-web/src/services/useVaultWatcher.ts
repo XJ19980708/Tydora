@@ -21,6 +21,8 @@ const NOISE_SEGMENTS = [
   '.hg',
   '.idea',
   '.vscode',
+  // 导入镜像的映射表：由同步功能自己写，不必触发文件树刷新
+  '.tydora-imports.json',
 ];
 
 function isNoisePath(p: string): boolean {

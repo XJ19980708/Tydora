@@ -10,8 +10,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { ConfirmDialog } from "./components";
 import { UpdateLinkDialog } from "./components";
 import { FolderPicker } from "./components";
+import { ImportSyncDialog } from "./components";
 import { LinkIndexService } from "./wikilink";
 import { resolveRelativePath } from "./services";
+import { addImportRecords, toVaultRelative, fromVaultRelative, type ImportRecord } from "./services/importMirror";
+import { isScanImageFile } from "./services/vault-file-scanner";
 import { relativePath as computeRelativePath } from "./services/ImageManager";
 import { BookmarksPanel } from "./Bookmarks";
 import { TagPanel, parseTagSearchQuery, resolveTagFileSet } from "./tags";
@@ -270,12 +273,28 @@ async function uniqueDirPath(dirPath: string, dirName: string): Promise<string> 
   }
 }
 
+/** 判定文件是否参与「导入镜像」：Markdown 或图片（范围与文件树、索引扫描一致）。 */
+function isImportableFile(name: string): boolean {
+  return isMarkdownFileName(name) || isScanImageFile(name);
+}
+
+/** 是否为仓库内相对路径（toVaultRelative 对仓外路径会原样返回绝对路径）。 */
+function isInsideVaultRel(rel: string): boolean {
+  return rel.length > 0 && !rel.startsWith("/") && !rel.startsWith("\\") && !/^[a-zA-Z]:/.test(rel);
+}
+
+/** 一次导入的产物：复制数量 + 待登记的镜像记录 */
+interface ImportOutcome {
+  count: number;
+  records: ImportRecord[];
+}
+
 /**
  * 弹出文件选择器，把选中的 Markdown 文档复制进目标目录（保留原始字节）。
  * 同名文件通过 uniqueFilePath 自动追加序号。
- * 返回值：用户取消返回 null，否则返回实际导入数量。
+ * 返回值：用户取消返回 null，否则返回复制数量与镜像记录。
  */
-async function copyMarkdownFilesInto(targetDir: string): Promise<number | null> {
+async function copyMarkdownFilesInto(targetDir: string, vaultPath: string): Promise<ImportOutcome | null> {
   const selected = await open({
     multiple: true,
     directory: false,
@@ -284,7 +303,8 @@ async function copyMarkdownFilesInto(targetDir: string): Promise<number | null> 
   if (!selected) return null;
 
   const sources = Array.isArray(selected) ? selected : [selected];
-  let imported = 0;
+  const records: ImportRecord[] = [];
+  let count = 0;
   for (const src of sources) {
     const fileName = src.split(/[/\\]/).pop() || "";
     if (!fileName) continue;
@@ -293,13 +313,20 @@ async function copyMarkdownFilesInto(targetDir: string): Promise<number | null> 
     const ext = dot > 0 ? fileName.slice(dot) : ".md";
     const destPath = await uniqueFilePath(targetDir, baseName, ext);
     await copyFile(src, destPath);
-    imported++;
+    count++;
+    const destRel = toVaultRelative(vaultPath, destPath);
+    if (isInsideVaultRel(destRel)) {
+      records.push({ source: src, dest: destRel, kind: "file", lastSyncAt: new Date().toISOString() });
+    }
   }
-  return imported;
+  return { count, records };
 }
 
-/** 递归收集目录下的 Markdown 文档，返回相对路径（"/" 分隔）与绝对路径。跳过以 "." 开头的隐藏项。 */
-async function collectMarkdownTree(rootDir: string): Promise<Array<{ rel: string; path: string }>> {
+/**
+ * 递归收集目录下参与镜像的文件（Markdown + 图片），返回相对路径（"/" 分隔）与绝对路径。
+ * 跳过以 "." 开头的隐藏项。
+ */
+async function collectImportTree(rootDir: string): Promise<Array<{ rel: string; path: string }>> {
   const found: Array<{ rel: string; path: string }> = [];
 
   const walk = async (dir: string, relDir: string) => {
@@ -316,7 +343,7 @@ async function collectMarkdownTree(rootDir: string): Promise<Array<{ rel: string
       const fullPath = joinPath(dir, entry.name);
       if (entry.isDirectory) {
         await walk(fullPath, rel);
-      } else if (isMarkdownFileName(entry.name)) {
+      } else if (isImportableFile(entry.name)) {
         found.push({ rel, path: fullPath });
       }
     }
@@ -327,11 +354,11 @@ async function collectMarkdownTree(rootDir: string): Promise<Array<{ rel: string
 }
 
 /**
- * 选择一个文件夹，把其中所有 Markdown 文档连同子目录结构复制进目标目录。
- * 内容落在 `目标目录/<所选文件夹名>/` 下；同名目录已存在时合并，同名文件自动追加序号。
- * 返回值：用户取消返回 null，否则返回实际导入数量（可能为 0）。
+ * 选择一个文件夹，把其中所有 Markdown 文档与图片连同子目录结构复制进目标目录。
+ * 内容落在 `目标目录/<所选文件夹名>/` 下；同名目录已存在时合并，同名文件自动追加序号（不覆盖）。
+ * 返回值：用户取消返回 null，否则返回复制数量与镜像记录（记录用于之后手动重新同步）。
  */
-async function copyMarkdownFolderInto(targetDir: string): Promise<number | null> {
+async function copyMarkdownFolderInto(targetDir: string, vaultPath: string): Promise<ImportOutcome | null> {
   const selected = await open({
     directory: true,
     multiple: false,
@@ -343,9 +370,9 @@ async function copyMarkdownFolderInto(targetDir: string): Promise<number | null>
   const destRoot = joinPath(targetDir, folderName);
   if (!(await exists(destRoot))) await mkdir(destRoot, { recursive: true });
 
-  const files = await collectMarkdownTree(selected);
+  const files = await collectImportTree(selected);
   const createdDirs = new Set<string>();
-  let imported = 0;
+  const copiedRels: string[] = [];
   for (const file of files) {
     const slash = file.rel.lastIndexOf("/");
     const relDir = slash >= 0 ? file.rel.slice(0, slash) : "";
@@ -363,24 +390,44 @@ async function copyMarkdownFolderInto(targetDir: string): Promise<number | null>
     const ext = dot > 0 ? fileName.slice(dot) : ".md";
     const destPath = await uniqueFilePath(destDir, baseName, ext);
     await copyFile(file.path, destPath);
-    imported++;
+    copiedRels.push(file.rel);
   }
-  return imported;
+
+  const records: ImportRecord[] = [];
+  const destRel = toVaultRelative(vaultPath, destRoot);
+  if (copiedRels.length > 0 && isInsideVaultRel(destRel)) {
+    records.push({
+      source: selected,
+      dest: destRel,
+      kind: "folder",
+      lastSyncAt: new Date().toISOString(),
+      files: copiedRels,
+    });
+  }
+  return { count: copiedRels.length, records };
 }
 
 /**
- * 执行一次导入并给出反馈。返回是否发生了实际导入（调用方据此决定要不要刷新文件树）。
- * null = 用户取消；0 = 选定位置没有 Markdown 文档。
+ * 执行一次导入、登记镜像记录并给出反馈。返回是否发生了实际导入（调用方据此决定要不要刷新文件树）。
+ * null = 用户取消；count 为 0 = 选定位置没有可导入的文档。
  */
-async function reportImport(run: () => Promise<number | null>): Promise<boolean> {
+async function reportImport(run: () => Promise<ImportOutcome | null>, vaultPath: string): Promise<boolean> {
   try {
-    const imported = await run();
-    if (imported === null) return false;
-    if (imported === 0) {
+    const outcome = await run();
+    if (outcome === null) return false;
+    if (outcome.count === 0) {
       showToast(i18n.t("sidebar.import.noneFound"));
       return false;
     }
-    showToast(i18n.t("sidebar.toast.imported", { count: imported }));
+    if (outcome.records.length > 0) {
+      try {
+        await addImportRecords(vaultPath, outcome.records);
+      } catch (err) {
+        // 文件已复制成功，只是镜像登记失败：不因此把导入报成失败
+        console.warn(i18n.t("sidebar.sync.saveFailed"), err);
+      }
+    }
+    showToast(i18n.t("sidebar.toast.imported", { count: outcome.count }));
     return true;
   } catch (err) {
     console.error(i18n.t("sidebar.error.importFailed"), err);
@@ -1410,13 +1457,13 @@ function TreeNodeComp({
 
   const handleImportMarkdown = useCallback(async () => {
     const targetDir = node.isDirectory ? node.path : parentPath(node.path);
-    if (await reportImport(() => copyMarkdownFilesInto(targetDir))) await onReload(targetDir);
-  }, [node, onReload]);
+    if (await reportImport(() => copyMarkdownFilesInto(targetDir, rootPath), rootPath)) await onReload(targetDir);
+  }, [node, onReload, rootPath]);
 
   const handleImportFolder = useCallback(async () => {
     const targetDir = node.isDirectory ? node.path : parentPath(node.path);
-    if (await reportImport(() => copyMarkdownFolderInto(targetDir))) await onReload(targetDir);
-  }, [node, onReload]);
+    if (await reportImport(() => copyMarkdownFolderInto(targetDir, rootPath), rootPath)) await onReload(targetDir);
+  }, [node, onReload, rootPath]);
 
   const handleNewWhiteboard = useCallback(async () => {
     const targetDir = node.isDirectory ? node.path : parentPath(node.path);
@@ -1758,6 +1805,7 @@ function FileTree({
   // ── Sort state ──
   const [sortSettings, setSortSettings] = useState<FileSortSettings>(loadSortSettings);
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
 
   // 记录展开的目录，reload 后恢复
   const rootNodesRef = useRef<TreeNode[]>([]);
@@ -2255,12 +2303,12 @@ function FileTree({
 
   const handleRootImportMarkdown = useCallback(async () => {
     const targetDir = selectionDir;
-    if (await reportImport(() => copyMarkdownFilesInto(targetDir))) await handleReload(ancestorDirs(targetDir, rootPath));
+    if (await reportImport(() => copyMarkdownFilesInto(targetDir, rootPath), rootPath)) await handleReload(ancestorDirs(targetDir, rootPath));
   }, [selectionDir, rootPath, handleReload]);
 
   const handleRootImportFolder = useCallback(async () => {
     const targetDir = selectionDir;
-    if (await reportImport(() => copyMarkdownFolderInto(targetDir))) await handleReload(ancestorDirs(targetDir, rootPath));
+    if (await reportImport(() => copyMarkdownFolderInto(targetDir, rootPath), rootPath)) await handleReload(ancestorDirs(targetDir, rootPath));
   }, [selectionDir, rootPath, handleReload]);
 
   const handleNewRootWhiteboard = useCallback(async () => {
@@ -2290,6 +2338,12 @@ function FileTree({
       console.error(i18n.t("sidebar.error.openTerminalFailed"), err);
     }
   }, [rootPath]);
+
+  /** 镜像同步完成：展开落点所在目录并刷新文件树，让新同步的文件立即可见 */
+  const handleSyncDialogSynced = useCallback((destRel: string) => {
+    const destAbs = fromVaultRelative(rootPath, destRel);
+    handleReload(ancestorDirs(destAbs, rootPath));
+  }, [rootPath, handleReload]);
 
   const blankActions: FileActions = {
     onOpen: () => {},
@@ -2862,6 +2916,18 @@ function FileTree({
             <path d="M15 19h6" />
           </svg>
         </button>
+        <button
+          className="sidebar-action-btn"
+          onClick={() => setSyncDialogOpen(true)}
+          title={i18n.t("sidebar.toolbar.resync")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            <path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16" />
+            <path d="M21 21v-5h-5" />
+          </svg>
+        </button>
         <div className="sidebar-sort-wrap">
           <button
             className="sidebar-action-btn"
@@ -3019,6 +3085,13 @@ function FileTree({
         vaultPath={rootPath}
         onSelect={handleFolderSelect}
         onCancel={handleFolderPickerCancel}
+      />
+
+      <ImportSyncDialog
+        open={syncDialogOpen}
+        onClose={() => setSyncDialogOpen(false)}
+        vaultPath={rootPath}
+        onSynced={handleSyncDialogSynced}
       />
 
       {/* Delete 键删除确认弹窗（与右键删除同一文案 / 同一流程） */}

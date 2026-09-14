@@ -1,0 +1,220 @@
+/* ===== 导入镜像重新同步弹框 ===== */
+.sync-dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.sync-dialog-header {
+  flex: none;
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sync-dialog-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sync-dialog-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.sync-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 32px 28px;
+}
+
+.sync-empty {
+  margin: 32px 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* ── 记录列表 ───────────────────────────────────────────────────── */
+
+.sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-record {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.sync-record-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-record-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-kind {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #fff;
+  background: var(--accent);
+}
+
+.sync-record-dest {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-record-time {
+  margin-left: auto;
+  flex: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-record-source {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-status {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.sync-status.is-warn {
+  color: var(--warning, #d9822b);
+}
+
+.sync-record-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── 按钮 ───────────────────────────────────────────────────────── */
+
+.sync-btn {
+  min-width: 72px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.sync-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sync-btn.is-primary {
+  border-color: transparent;
+  color: #fff;
+  background: var(--accent);
+}
+
+.sync-btn.is-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* ── 覆盖确认 ───────────────────────────────────────────────────── */
+
+.sync-confirm {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  padding: 16px;
+}
+
+.sync-confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sync-confirm-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.sync-confirm-summary {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.sync-confirm-path {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-confirm-list {
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.sync-confirm-item {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.sync-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}

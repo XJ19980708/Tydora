@@ -5,3 +5,4 @@ export { default as FilePreview } from "./FilePreview";
 export { UpdateLinkDialog } from "./UpdateLinkDialog";
 export { FolderPicker } from "./FolderPicker";
 export { default as ReleaseNotesDialog } from "./ReleaseNotesDialog";
+export { default as ImportSyncDialog } from "./ImportSyncDialog";

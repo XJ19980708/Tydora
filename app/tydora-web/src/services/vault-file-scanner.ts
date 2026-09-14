@@ -32,6 +32,11 @@ function lowerExt(name: string): string {
   return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
 }
 
+/** 是否为索引识别的图片。导出供导入镜像等功能复用，避免扩展名列表两处漂移。 */
+export function isScanImageFile(name: string): boolean {
+  return IMAGE_EXTENSIONS.has(lowerExt(name));
+}
+
 /**
  * 递归扫描仓库目录，一次性产出 md/canvas/image 三类文件列表。
  *
