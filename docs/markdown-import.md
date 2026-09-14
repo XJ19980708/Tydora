@@ -27,6 +27,7 @@
   - [数据流](#数据流)
 - [已知限制](#已知限制)
 - [构建与验证](#构建与验证)
+  - [回归测试](#回归测试)
 - [版本与迭代记录](#版本与迭代记录)
 
 ---
@@ -242,6 +243,14 @@ img/cover.png
 | `app/tydora-web/src/i18n/locales/zh-CN.json` | `sidebar.sync.*` 25 个键 + `toolbar.resync`，并更新 `import.noneFound` 等 3 条旧文案 |
 | `app/tydora-web/src/i18n/locales/en-US.json` | 同上 |
 
+导入镜像的回归测试：
+
+| 文件 | 改动 |
+|------|------|
+| `tests/import-mirror/case.ts` | **新增**：4 个用例 / 59 项断言，跑的是仓库里真实的 `importMirror.ts` |
+| `tests/import-mirror/run.mjs` | **新增**：esbuild 打包 + Tauri IPC 替身 + 运行器 |
+| `package.json` | 新增 `test` 脚本 |
+
 **本次没有新增任何 fs 权限**：mtime 与目录枚举走应用自身的 `list_dir_with_meta` 命令（`app/tydora-desktop/src/commands/file_commands.rs`，`std::fs` 直读，不受 ACL scope 限制），复制/建目录/读写文本沿用既有权限。
 
 ### 关键函数
@@ -362,10 +371,38 @@ npm run tauri build -- --no-bundle
 | `npx tsc --noEmit` | exit 0 |
 | `npx vite build` | exit 0 |
 | `npm run tauri build -- --no-bundle` | exit 0，产物 `target/release/tydora-desktop.exe` |
+| `npm test`（导入镜像回归测试） | 4 通过 / 0 失败，59 项断言 |
 | `fs:allow-copy-file` 落到 `gen/schemas/capabilities.json` | 通过 |
 | Windows 复制保留源 mtime（PowerShell `Copy-Item` 实测） | 通过，是「覆盖后不再反复覆盖」的前提 |
 
-**未做**：交互式 GUI 点击验收（本环境窗口枚举被策略拦截，且安装版占用单实例锁）；因此「同步后文件树自动展开到落点」只有代码路径与类型检查佐证。
+**未做**：交互式 GUI 点击验收（原生目录选择器是瞬时窗口、不可被自动化工具定位；且本机若装有官方安装版会占用单实例锁）。因此「点 🔄 → 选记录 → 确认覆盖 → 文件树展开到落点」这一串**交互编排**只有代码路径与类型检查佐证；**同步的判定与文件效果**则由下面的回归测试覆盖。
+
+### 回归测试
+
+```bash
+npm test
+```
+
+用例在 `tests/import-mirror/case.ts`，跑的是**仓库里真实的** `app/tydora-web/src/services/importMirror.ts`——不是另写一份等价逻辑。运行器 `tests/import-mirror/run.mjs` 用 esbuild（vite 自带，**未新增任何依赖**）把源码打成一个 Node 可执行的 bundle，构建时只把 Tauri 的 IPC 边界换成 `node:fs` 替身：
+
+| 真实依赖 | 替身 |
+|---------|------|
+| `@tauri-apps/api/core` 的 `invoke("list_dir_with_meta")` | `fs.readdirSync(..., {withFileTypes:true})` + `statSync`，mtime 按 Rust 侧 `as_millis()` 截断为整数毫秒 |
+| `@tauri-apps/plugin-fs`（`copyFile` / `exists` / `mkdir` / `readTextFile` / `writeTextFile` / `readDir`） | 同名 `node:fs` 封装 |
+| `@tauri-apps/plugin-dialog`、`api/event`、`api/window`、`../i18n` | 空实现 / 直通 |
+
+覆盖范围（对齐「同步语义」一节的每一条约定）：
+
+| 用例 | 断言内容 |
+|------|---------|
+| 目录镜像生命周期 | 登记映射 → 首次同步全部「未变」→ 源更新（覆盖）→ 幂等（二次同步无事可做）→ 源新增子目录文件 → 目标更新进 `conflicts` 且需确认才覆盖 → **源删除只报告、目标文件保留** → 源整棵消失 `sourceMissing` 且目标一个文件不动 → 图片字节同步 |
+| 单文件 `kind=file` | 新增 / 幂等 / 源消失后副本保留 |
+| 映射表 | 空记录不写盘、同「源 + 落点」去重覆盖、移除只删一条、坏 JSON 退化为空表、缺 `kind` 的条目被过滤 |
+| 路径换算 | `toVaultRelative` / `fromVaultRelative` 正反斜杠归一、仓库根 → 空串、仓外路径原样返回、`C:\vaultish` 不被误判为仓库内、往返一致 |
+
+沙盒固定在仓库内被 gitignore 的 `.build/test-import-mirror/`，全程只碰这个目录，不读不写任何真实仓库；**全部通过时自动清理**，失败时保留供排查。
+
+> 测试放在顶层 `tests/` 而非 `app/tydora-web/src/` 下，是因为 `tsconfig.json` 的 `include` 只有 `app/tydora-web/src`，且未装 `@types/node`——放进 `src/` 会让 `npm run build` 的 `tsc` 阶段失败。
 
 ---
 
@@ -373,7 +410,7 @@ npm run tauri build -- --no-bundle
 
 ### 本次迭代：v0.2.7 本地功能（导入镜像 / 重新同步）
 
-版本号遵循「上游裸版本 + 本地迭代号」（`LOCAL_REVISION` + `scripts/sync-version.mjs`），应用内显示为 `v0.2.7.1`。本次改动**全部在前端**（新增 3 个文件、修改 5 个文件），未动 `capabilities`，因此没有触发 crate 整体重编译。
+版本号**直接跟随上游裸版本**（`VERSION` 文件 + `scripts/sync-version.mjs`），当前为 `v0.2.7`——不做本地迭代后缀。功能改动**全部在前端**（新增 3 个文件、修改 5 个文件），未动 `capabilities`，因此没有触发 crate 整体重编译；随后又补了本文提到的回归测试（新增 2 个文件 + `package.json` 1 行）。
 
 | 类型 | 内容 |
 |------|------|
@@ -383,6 +420,7 @@ npm run tauri build -- --no-bundle
 | 🚀 新功能 | 源删除的文件不删目标，仅报告数量 |
 | 🔧 改进 | 文件夹模式从「只认 Markdown」扩展为 **Markdown + 图片**，图片判定复用索引扫描的扩展名表 |
 | 🔧 改进 | 映射表路径加入 watcher 噪声段，避免写记录触发文件树刷新 |
+| ✅ 测试 | `npm test`：59 项断言的回归用例，跑真实 `importMirror.ts`（Tauri IPC 用 `node:fs` 替身） |
 | 📝 文档 | 本文档扩写为新功能说明 |
 
 ### 上一次迭代：0.2.5 → 0.2.6（导入功能）

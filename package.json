@@ -30,7 +30,8 @@
     "postinstall": "patch-package",
     "commit": "cz",
     "changelog": "git-cliff -o CHANGELOG.md",
-    "lint:commit": "commitlint --from HEAD~1"
+    "lint:commit": "commitlint --from HEAD~1",
+    "test": "node tests/import-mirror/run.mjs"
   },
   "dependencies": {
     "@abstractwebunit/markdown-publish": "file:./vendor/markdown-publish",
