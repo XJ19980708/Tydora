@@ -4,7 +4,7 @@ bootStamp("App_module_imported");
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { readTextFile, writeTextFile, rename, exists } from "@tauri-apps/plugin-fs";
-import { save } from "@tauri-apps/plugin-dialog";
+import { save, open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import type { EditorHandle, EditorMode } from "./Editor/types";
 import type { CodeMirrorEditorHandle } from "./Editor/CodeMirrorEditor";
@@ -34,7 +34,7 @@ import { buildExportArtifact, EXPORT_FORMATS, type ExportFormat, type BuiltArtif
 import { ExportPreviewDialog } from "./components/ExportPreviewDialog";
 import { XhsPreviewPanel } from "./export/xiaohongshu";
 import { emit, listen } from "@tauri-apps/api/event";
-import { loadImageSettings, type ImageSettings } from "./services";
+import { loadImageSettings, IMAGE_SETTINGS_KEY, type ImageSettings } from "./services";
 import { loadEditorSettings, type EditorSettings, EDITOR_SETTINGS_KEY, SHORTCUTS_KEY, GRAPH_SETTINGS_KEY, DEFAULT_GRAPH, type SidebarTab, type SidebarSide, type SidebarTabPlacement, sidebarTabsForSide, DEFAULT_GENERAL, TOGGLE_SIDEBAR_EVENT, TOGGLE_RIGHT_SIDEBAR_EVENT } from "./Settings";
 import { applyFontSettings } from "./utils/systemFonts";
 import { applyMenuDensity, applyEditorSpacingFromSettings, normalizeMenuDensity } from "./utils/menuDensity";
@@ -877,8 +877,15 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   // 快速打开文件弹窗状态
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
 
-  // 图像设置状态
-  const [imageSettings] = useState<ImageSettings>(() => loadImageSettings());
+  // 图像设置状态（设置弹框内改动后实时同步；跨窗口亦通过 storage 事件同步）
+  const [imageSettings, setImageSettings] = useState<ImageSettings>(() => loadImageSettings());
+  useEffect(() => {
+    const handleImageSettingsStorage = (e: StorageEvent) => {
+      if (e.key === IMAGE_SETTINGS_KEY) setImageSettings(loadImageSettings());
+    };
+    window.addEventListener("storage", handleImageSettingsStorage);
+    return () => window.removeEventListener("storage", handleImageSettingsStorage);
+  }, []);
 
   // 命令面板状态
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -3373,6 +3380,27 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     }
   }, [activeVaultIndex, vaults]);
 
+  // 侧栏菜单「打开新仓库」：目录选择器 → 添加为仓库并激活
+  const handleOpenNewVault = useCallback(async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: t("vaultManager.openLocal.dialogTitle"),
+      });
+      if (!selected || typeof selected !== "string") return;
+      const name = selected.split(/[/\\]/).pop() || selected;
+      const newVaults = [...vaults, { name, path: selected }];
+      const newIndex = newVaults.length - 1;
+      setVaults(newVaults);
+      setActiveVaultIndex(newIndex);
+      // 广播给其他窗口（管理仓库弹框等），保持跨窗口一致
+      await emit("vaults-changed", { vaults: newVaults, activeIndex: newIndex });
+    } catch (err) {
+      console.error(t("vaultManager.openFailed"), err);
+    }
+  }, [vaults, t]);
+
   // ── 命令面板命令列表 ──
   const commands = useMemo(() => [
     // 文件操作
@@ -3495,7 +3523,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
           onNewWindow={handleNewWindow}
           onOpenInNewPanel={handleOpenInNewPanel}
           canOpenInNewPanel={!!fileName && isCurrentFileMarkdown && !canvasFilePath && !previewFilePath && !graphViewOpen}
-          onPublish={handlePublish}
+          onOpenNewVault={handleOpenNewVault}
           onSelectVault={setActiveVaultIndex}
           collapsed={!sidebarOpen}
           refreshKey={treeRefreshKey}
@@ -4254,7 +4282,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
             onNewWindow={handleNewWindow}
             onOpenInNewPanel={handleOpenInNewPanel}
             canOpenInNewPanel={!!fileName && isCurrentFileMarkdown && !canvasFilePath && !previewFilePath && !graphViewOpen}
-            onPublish={handlePublish}
+            onOpenNewVault={handleOpenNewVault}
             onSelectVault={setActiveVaultIndex}
             collapsed={!rightSidebarOpen}
             refreshKey={treeRefreshKey}
@@ -4328,7 +4356,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         ariaLabel={t("app.command.labels.openSettings")}
         closeTitle={t("settings.close")}
         width="1040px"
-        height="700px"
+        height="820px"
       >
         <Suspense fallback={null}>
           <Settings key={settingsKey} onClose={() => setSettingsOpen(false)} />

@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "Tydora",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "identifier": "com.tydora.editor",
   "build": {
     "frontendDist": "../../.build/web-dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run sync-version && npm run dev",
-    "beforeBuildCommand": "npm run sync-version && npm run build"
+    "beforeDevCommand": "npm run sync-version && npm run build:cli -- --debug && npm run dev",
+    "beforeBuildCommand": "npm run sync-version && npm run build:cli && npm run build"
   },
   "app": {
     "macOSPrivateApi": true,
@@ -45,6 +45,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
+    "externalBin": [
+      "binaries/tydora-cli"
+    ],
     "fileAssociations": [
       {
         "ext": [

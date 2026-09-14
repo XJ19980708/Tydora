@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.2.7（2026-09-11）
+
+### **🚀 Features**
+
+- Enhance view state management for cross-mode editor transitions ([<u>30adf45</u>](https://github.com/zuorn/Tydora/commit/30adf4583f1f4dca875ec4dfd0e7affa245485b8))
+- 添加右侧栏切换功能，更新快捷键配置和国际化支持 ([<u>417eb80</u>](https://github.com/zuorn/Tydora/commit/417eb800acb744a52dea03adcde5f3291e50961f))
+- 更新欢迎页品牌区样式，调整图标尺寸并修改不透明度 ([<u>83fac21</u>](https://github.com/zuorn/Tydora/commit/83fac2133509b2a5fc4422531fd34d74bde43e2d))
+- 更新版本号至 0.2.7，修改相关文档和配置文件 ([<u>75a6522</u>](https://github.com/zuorn/Tydora/commit/75a65227021920c76119d5e0e5138f9c033480f7))
+
+## 0.2.6（2026-09-10）
+
+### **🏗️ Chores**
+
+- 更新版本号至 0.2.6 ([<u>cc8a94c</u>](https://github.com/zuorn/Tydora/commit/cc8a94c482a194f12d0035f917386403b1bf6ad8))
+
+### **🐛 Bug Fixes**
+
+- 修复 Windows 便携版打包逻辑，支持多种可执行文件名 ([<u>12329f9</u>](https://github.com/zuorn/Tydora/commit/12329f9f1340acad8f427457fdaf72f652fe9fdc))
+
+### **🚀 Features**
+
+- Tydora-core + tydora-cli Phase 1-5 ([<u>b7584cd</u>](https://github.com/zuorn/Tydora/commit/b7584cdc6b1ff31d70f8ebafbf9493a3ec9bf84a))
+- Add TagPanel component with list and graph views, including tag filtering and search functionality ([<u>a4d683c</u>](https://github.com/zuorn/Tydora/commit/a4d683c91f866ed3adc797fe09b05cd40a756e5c))
+
+## 0.2.5（2026-09-06）
+
+### **🏗️ Chores**
+
+- 发布 v0.2.5 ([<u>de105f5</u>](https://github.com/zuorn/Tydora/commit/de105f5b1b7a797dc864a5e9d8b2fb0e228bed52))
+
+### **🐛 Bug Fixes**
+
+- 更新 CSS 变量名并替换站点图标 ([<u>4f0708c</u>](https://github.com/zuorn/Tydora/commit/4f0708cdd4a788f2bbd8446861872cd2dd0d7a1f))
+- 优化滚动持久化与点击交互 ([<u>163a471</u>](https://github.com/zuorn/Tydora/commit/163a471c24e796c9b8ea74fdbb4340710a3dd5cc))
+
+### **🚀 Features**
+
+- 代码块工具栏新增主题切换功能 ([<u>3739bd9</u>](https://github.com/zuorn/Tydora/commit/3739bd991bc63c4e43e45aeca1efdab23426450e))
+- Add vault parser for markdown publishing ([<u>743b819</u>](https://github.com/zuorn/Tydora/commit/743b819d94eb0b31714da13df197542053ed5e65))
+
+## 0.2.4（2026-09-04）
+
+### **🐛 Bug Fixes**
+
+- 修复 Leader 菜单重复触发与按键绑定 ([<u>9f7f815</u>](https://github.com/zuorn/Tydora/commit/9f7f8154f8925f613af748a438652551d1a50da6))
+- 文件切换后重置光标位置，避免 focus 滚动到底部 ([<u>fb302b4</u>](https://github.com/zuorn/Tydora/commit/fb302b45bce6c281b304dcb01ce90fcdfecde69b))
+- 统一右侧栏折叠按钮样式 ([<u>cf8c477</u>](https://github.com/zuorn/Tydora/commit/cf8c47735c11535fe88d67f6402d1935a7dcd813))
+
+### **🚀 Features**
+
+- 支持右侧栏与侧栏 tab 可配置分配 ([<u>2c32327</u>](https://github.com/zuorn/Tydora/commit/2c3232788b3e65c0f17336dcdddca85a3932e2e6))
+
+## 0.2.3（2026-09-01）
+
+### **🐛 Bug Fixes**
+
+- 修复 Leader 菜单重复触发与按键绑定 ([<u>9f7f815</u>](https://github.com/zuorn/Tydora/commit/9f7f8154f8925f613af748a438652551d1a50da6))
+
 ## 0.2.2（2026-08-27）
 
 ## **🐛 Bug Fixes**
