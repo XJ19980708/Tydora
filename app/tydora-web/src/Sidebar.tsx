@@ -15,6 +15,7 @@ import { relativePath as computeRelativePath } from "./services/ImageManager";
 import { BookmarksPanel } from "./Bookmarks";
 import { TagPanel, parseTagSearchQuery, resolveTagFileSet } from "./tags";
 import { type SidebarTab } from "./Settings";
+import { FileTreeIcon } from "./SidebarFileIcons";
 import "./Sidebar.css";
 
 // 大纲标签页顶部的本地图谱：d3 依赖较重，动态加载避免拖慢首屏
@@ -152,6 +153,8 @@ interface SidebarProps {
   onManageVaults?: () => void;
   /** 打开"设置"模态弹框 */
   onOpenSettings?: () => void;
+  /** 是否显示文件类型图标（通用设置） */
+  showFileIcons?: boolean;
 }
 
 interface ContextMenuItem {
@@ -1156,6 +1159,7 @@ function TreeNodeComp({
   lastClickedPathRef,
   onToggleExpand,
   onMoveTo,
+  showFileIcons,
 }: {
   node: TreeNode;
   depth: number;
@@ -1179,6 +1183,7 @@ function TreeNodeComp({
   lastClickedPathRef: React.MutableRefObject<string | null>;
   onToggleExpand: (path: string, expanded: boolean) => void;
   onMoveTo: (path: string, isDirectory: boolean) => void;
+  showFileIcons: boolean;
 }) {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -1409,6 +1414,9 @@ function TreeNodeComp({
         ) : (
           <span className="tree-icon-spacer" />
         )}
+        {showFileIcons && (
+          <FileTreeIcon name={node.name} isDirectory={node.isDirectory} expanded={!!node.expanded} />
+        )}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -1460,6 +1468,7 @@ function TreeNodeComp({
               lastClickedPathRef={lastClickedPathRef}
               onToggleExpand={onToggleExpand}
               onMoveTo={onMoveTo}
+              showFileIcons={showFileIcons}
             />
           ))}
         </div>
@@ -1503,6 +1512,7 @@ function FileTree({
   onScrollToTop,
   hidden,
   onBookmark,
+  showFileIcons,
 }: {
   rootPath: string;
   activePath: string | null;
@@ -1514,6 +1524,7 @@ function FileTree({
   onScrollToTop?: () => void;
   hidden?: boolean;
   onBookmark: (filePath: string, isDirectory: boolean) => void;
+  showFileIcons: boolean;
 }) {
   const vaultPath = rootPath;
   const [rootNodes, setRootNodes] = useState<TreeNode[]>([]);
@@ -2797,6 +2808,7 @@ function FileTree({
             lastClickedPathRef={lastClickedPathRef}
             onToggleExpand={handleToggleExpand}
             onMoveTo={handleMoveTo}
+            showFileIcons={showFileIcons}
           />
         ))}
 
@@ -3392,6 +3404,7 @@ export default function Sidebar({
   onManageVaults,
   /** 打开"设置"（主窗口内的模态弹框） */
   onOpenSettings,
+  showFileIcons = true,
 }: SidebarProps) {
   bootStart("sidebar_component_render");
   bootStamp("sidebar_component_entered");
@@ -3828,6 +3841,7 @@ export default function Sidebar({
                   onOpenInNewPanel={onOpenInNewPanel}
                   canOpenInNewPanel={canOpenInNewPanel}
                   onBookmark={onBookmark}
+                  showFileIcons={showFileIcons}
                 />
               ) : (
                 <div className="sidebar-tree">

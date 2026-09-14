@@ -1892,3 +1892,24 @@ html.platform-macos .sidebar.sidebar-right .sidebar-topbar {
   font-size: 12px;
   opacity: 0.7;
 }
+/* ── 文件树类型图标（通用设置「显示文件图标」）──
+   Typora 风格：单色灰描边图标，与折叠箭头同色调，跟随主题变量 */
+.tree-file-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #8a919f);
+}
+
+.tree-file-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tree-node.active .tree-file-icon {
+  color: var(--text-secondary, #8a919f);
+}

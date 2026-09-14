@@ -447,6 +447,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   const [irLineNumbers, setIrLineNumbers] = useState(() => s.irLineNumbers ?? true);
   // 双击 .md 文件外部打开时，是否展开侧栏并自动切换到大纲视图（默认开启）
   const [expandOutlineOnOpen, setExpandOutlineOnOpen] = useState(() => s.expandOutlineOnOpen ?? true);
+  // 文件树是否显示文件类型图标（通用设置，默认开启）
+  const [showFileIcons, setShowFileIcons] = useState(() => s.showFileIcons ?? true);
   // 传递给 Sidebar 的"切到大纲"触发器（每次自增促使 Sidebar 切 tab）
   const [outlineTrigger, setOutlineTrigger] = useState(0);
   // Ctrl+滚轮调整字号时的右上角提示（停止滚动 1.5s 后自动消失）
@@ -550,6 +552,9 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         }
         if (typeof settings.expandOutlineOnOpen === 'boolean') {
           setExpandOutlineOnOpen(settings.expandOutlineOnOpen);
+        }
+        if (typeof settings.showFileIcons === 'boolean') {
+          setShowFileIcons(settings.showFileIcons);
         }
         document.documentElement.dataset.codeBlockToolbar =
           settings.codeBlockToolbarStyle === "classic" ? "classic" : "minimal";
@@ -3534,6 +3539,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
           outlineTrigger={outlineTrigger}
           side="left"
           tabs={leftTabs}
+          showFileIcons={showFileIcons}
           onMoveTabToSide={moveSidebarTab}
           onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
           graphViewOpen={graphViewOpen}
@@ -4293,6 +4299,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
             outlineTrigger={outlineTrigger}
             side="right"
             tabs={rightTabs}
+            showFileIcons={showFileIcons}
             onMoveTabToSide={moveSidebarTab}
             onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
             graphViewOpen={graphViewOpen}

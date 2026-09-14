@@ -133,6 +133,8 @@ interface GeneralSettings {
   menuDensity: MenuDensity;
   /** 侧栏 tab 在左/右侧栏的分配 */
   sidebarTabPlacement: SidebarTabPlacement;
+  /** 文件树是否显示文件类型图标 */
+  showFileIcons: boolean;
 }
 
 interface ShortcutItem {
@@ -169,6 +171,7 @@ export const DEFAULT_GENERAL: GeneralSettings = {
     bookmarks: "left",
     tags: "right",
   },
+  showFileIcons: true,
 };
 
 interface MindmapSettings {
@@ -553,6 +556,23 @@ function GeneralSettingsContent({
               type="checkbox"
               checked={settings.expandOutlineOnOpen}
               onChange={(e) => onChange({ ...settings, expandOutlineOnOpen: e.target.checked })}
+            />
+            <span className="settings-switch-slider" />
+          </label>
+        </div>
+      </div>
+
+      <div className="canvas-settings-card">
+        <div className="canvas-settings-row">
+          <div className="canvas-settings-row-label">
+            <span className="canvas-settings-row-title">{t("settings.appearance.showFileIcons")}</span>
+            <span className="canvas-settings-row-desc">{t("settings.appearance.showFileIconsDesc")}</span>
+          </div>
+          <label className="settings-switch">
+            <input
+              type="checkbox"
+              checked={settings.showFileIcons}
+              onChange={(e) => onChange({ ...settings, showFileIcons: e.target.checked })}
             />
             <span className="settings-switch-slider" />
           </label>
@@ -2905,6 +2925,10 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
             ? Math.min(2.4, Math.max(1.2, Math.round(parsed.codeLineHeight * 10) / 10))
             : DEFAULT_GENERAL.codeLineHeight,
         sidebarTabPlacement: normalizeSidebarTabPlacement(parsed.sidebarTabPlacement),
+        showFileIcons:
+          typeof parsed.showFileIcons === "boolean"
+            ? parsed.showFileIcons
+            : DEFAULT_GENERAL.showFileIcons,
       };
     } catch {
       return DEFAULT_GENERAL;
