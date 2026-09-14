@@ -38,6 +38,15 @@ body {
   background: var(--bg-primary);
 }
 
+/* Windows/Linux：WebView2/Chromium 对根合成层的 overflow 圆角裁剪不做抗锯齿，
+   且 backdrop-filter 采样会溢出圆角，导致四角锯齿与半透明残影。
+   改用 clip-path（栅格化遮罩、自带抗锯齿），与 macOS 方案一致。 */
+html.platform-windows #root,
+html.platform-linux #root {
+  overflow: visible;
+  clip-path: inset(0 round 12px);
+}
+
 /* macOS：不用 overflow 裁剪（会幽灵选区）；用 clip-path 做视觉圆角。
  * 原生 CALayer.masksToBounds 同样会干扰选区，故不在 contentView 上裁剪。 */
 html.platform-macos #root {

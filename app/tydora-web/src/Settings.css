@@ -2406,6 +2406,29 @@
   min-height: 48px;
 }
 
+/* 命令面板跳转定位：目标设置行/卡片聚焦高亮（数秒后动画自然消退） */
+.canvas-settings-row:focus,
+.canvas-settings-card:focus {
+  outline: none;
+}
+
+.settings-item-highlight {
+  animation: settings-item-highlight-fade 3.2s ease forwards;
+  border-radius: 8px;
+}
+
+@keyframes settings-item-highlight-fade {
+  0%,
+  60% {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
 .canvas-settings-row + .canvas-settings-row {
   border-top: 1px solid var(--border);
 }

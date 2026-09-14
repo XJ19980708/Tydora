@@ -28,12 +28,14 @@ const VimSidebar = FileTreeVim(Sidebar);
 import { FilePreview } from "./components";
 import { QuickOpen } from "./components";
 import { CommandPalette } from "./components";
+import { SETTINGS_SEARCH_ITEMS } from "./settings/settingsSearchIndex";
 import { useTheme } from "./themes";
 import { ConfirmDialog } from "./components";
 import { buildExportArtifact, EXPORT_FORMATS, type ExportFormat, type BuiltArtifact } from "./export";
 import { ExportPreviewDialog } from "./components/ExportPreviewDialog";
 import { XhsPreviewPanel } from "./export/xiaohongshu";
 import { emit, listen } from "@tauri-apps/api/event";
+import i18n from "./i18n";
 import { loadImageSettings, IMAGE_SETTINGS_KEY, type ImageSettings } from "./services";
 import { loadEditorSettings, type EditorSettings, EDITOR_SETTINGS_KEY, SHORTCUTS_KEY, GRAPH_SETTINGS_KEY, DEFAULT_GRAPH, type SidebarTab, type SidebarSide, type SidebarTabPlacement, sidebarTabsForSide, DEFAULT_GENERAL, TOGGLE_SIDEBAR_EVENT, TOGGLE_RIGHT_SIDEBAR_EVENT } from "./Settings";
 import { applyFontSettings } from "./utils/systemFonts";
@@ -49,6 +51,7 @@ import PublishPanel from "./publish/PublishPanel";
 import PublishConfigDialog from "./publish/PublishConfigDialog";
 import { CONFIG_FILE } from "./publish/PublishService";
 import { buildIndexesTogether, persistIndexesToStorage, restoreIndexesFromCache } from "./services/index-builder";
+import { setWelcomeVaultDir } from "./services/welcomeVault";
 
 // 关系图谱 / 白板仅在打开时渲染，按需加载（避免 d3、@xyflow 进入首屏 bundle）
 const GraphView = lazy(() => import("./graph").then((m) => ({ default: m.GraphView })));
@@ -111,6 +114,8 @@ class EditorErrorBoundary extends Component<
 
 const VAULTS_KEY = "zmd-vaults";
 const ACTIVE_VAULT_KEY = "zmd-active-vault";
+/** 首次启动已初始化"介绍仓库"标记（只执行一次，无论成功与否不再重试） */
+const WELCOME_VAULT_INITIALIZED_KEY = "zmd-welcome-vault-initialized";
 const SIDEBAR_WIDTH_KEY = "zmd-sidebar-width";
 const RIGHT_SIDEBAR_OPEN_KEY = "zmd-right-sidebar-open";
 const RIGHT_SIDEBAR_WIDTH_KEY = "zmd-right-sidebar-width";
@@ -1039,6 +1044,48 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     }
   }, [initialVaultPath, vaults]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 首次启动：物化并自动打开"Tydora 介绍"仓库 ──────────────────────
+  // 仅执行一次（localStorage 标记）；已有仓库的老用户只物化文档文件，不注入仓库。
+  // 文档语言跟随当前界面语言（首次启动时界面语言由操作系统语言自动检测决定，
+  // 见 i18n/detect.ts），用户仍可在设置中手动切换语言。
+  // settled：标记初始化流程结束（成功/失败/无需注入），无仓库自动弹管理仓库的
+  // 逻辑要等它完成，避免"注入进行中"时弹框抢先打开。
+  const [welcomeVaultSettled, setWelcomeVaultSettled] = useState<boolean>(
+    () => !!localStorage.getItem(WELCOME_VAULT_INITIALIZED_KEY),
+  );
+  useEffect(() => {
+    if (localStorage.getItem(WELCOME_VAULT_INITIALIZED_KEY)) return;
+    // 同步置标记：防 StrictMode 双跑与重复注入
+    localStorage.setItem(WELCOME_VAULT_INITIALIZED_KEY, "1");
+    let cancelled = false;
+    const finish = () => setWelcomeVaultSettled(true);
+    (async () => {
+      try {
+        const dir = await invoke<string>("ensure_welcome_vault");
+        if (cancelled) { finish(); return; }
+        setWelcomeVaultDir(dir);
+        // 老用户（已有仓库）不做注入，仅在下次"管理仓库"里可以手动打开该目录
+        if (vaults.length > 0) { finish(); return; }
+        const lang = i18n.language?.startsWith("zh") ? "zh-CN" : "en-US";
+        const vaultName = lang === "zh-CN" ? "Tydora 介绍" : "Tydora Introduction";
+        const newVaults = [...vaults, { name: vaultName, path: dir }];
+        setVaults(newVaults);
+        setActiveVaultIndex(newVaults.length - 1);
+        // 等仓库状态落地后再打开欢迎文档
+        const sep = navigator.platform?.toLowerCase().includes("win") ? "\\" : "/";
+        const entry = lang === "zh-CN" ? "欢迎.md" : "Welcome.md";
+        setTimeout(() => {
+          void openFileRef.current(`${dir}${sep}${entry}`);
+        }, 400);
+      } catch (e) {
+        console.error("初始化介绍仓库失败", e);
+      } finally {
+        finish();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 启动时窗口可见性策略（秒开版）：
   // - 目标：用户点击 exe → 尽可能早看到主窗口（Rust 端 visible=true 已保证创建即显示）
   // - 正常路径（有仓库 / 双击 .md 打开文件）：始终显示主窗口，不做跨窗口跳转
@@ -1081,6 +1128,9 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
     if (!externalLaunchSettled) return;
     if (hasExternalFile) return;
+    // 首次启动的介绍仓库初始化尚未结束：等它完成（注入成功则走步骤 2 的
+    // vaults.length>0 分支；失败才落到这里打开管理仓库）
+    if (!welcomeVaultSettled) return;
 
     // 4) settled=true 且确实没有任何外部文件 → 在主窗口内打开"管理仓库"模态弹框
     //    （管理仓库已由独立窗口改为模态弹框，主窗口保持可见，不再关闭/通知关闭）
@@ -1089,7 +1139,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     setVaultManagerOpen(true);
     bootStamp("visibility_no_vault_after_open_vault_manager");
     bootEnd("visibility_no_vault_path");
-  }, [externalLaunchSettled, hasExternalFile, vaults, initialFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [externalLaunchSettled, hasExternalFile, vaults, initialFilePath, welcomeVaultSettled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 构建链接索引和标签索引（优化版：先缓存恢复 UI → 后台联合构建 → 统一持久化）
   useEffect(() => {
@@ -3509,7 +3559,27 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     { id: "settings-graph", label: t("app.command.labels.graphSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.graphSettings").split(", "), action: () => openSettings("graph") },
     { id: "settings-image", label: t("app.command.labels.imageSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.imageSettings").split(", "), action: () => openSettings("image") },
     { id: "settings-canvas", label: t("app.command.labels.canvasSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.canvasSettings").split(", "), action: () => openSettings("canvas") },
+    { id: "settings-editor", label: t("app.command.labels.editorSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.editorSettings").split(", "), action: () => openSettings("editor") },
+    { id: "settings-terminal", label: t("app.command.labels.terminalSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.terminalSettings").split(", "), action: () => openSettings("terminal") },
+    { id: "settings-publish", label: t("app.command.labels.publishSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.publishSettings").split(", "), action: () => openSettings("publish") },
+    { id: "settings-vim", label: t("app.command.labels.vimSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.vimSettings").split(", "), action: () => openSettings("vim") },
+    { id: "settings-cli", label: t("app.command.labels.cliSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.cliSettings").split(", "), action: () => openSettings("cli") },
     { id: "settings-about", label: t("app.command.labels.about"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.about").split(", "), action: () => openSettings("about") },
+
+    // 设置项级索引（settingsSearchIndex 注册表驱动）：名称 + 描述都可搜，
+    // 选中后打开对应标签页并滚动定位 + 聚焦高亮该设置项
+    ...SETTINGS_SEARCH_ITEMS.map((item) => ({
+      id: `settings-item:${item.id}`,
+      label: t(item.labelKey),
+      category: `${t("app.command.categories.settings")} · ${t(`settings.tabs.${item.tab}`)}`,
+      aliases: [t(item.labelKey), ...item.descKeys.map((d) => t(d))],
+      action: () => {
+        try {
+          localStorage.setItem("zmd-settings-focus-item", item.id);
+        } catch { /* ignore */ }
+        openSettings(item.tab);
+      },
+    })),
   ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish, openSettings]);
 
   return (

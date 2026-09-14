@@ -169,6 +169,43 @@ fn get_app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+// ── 欢迎仓库（新用户首次启动自动打开"Tydora 介绍"） ──────────────────
+
+/// 内置欢迎文档：编译期嵌入二进制（不依赖运行时资源目录，
+/// 对 NSIS 安装版 / 便携版 / dev 模式行为一致）。
+const WELCOME_DOC_ZH_WELCOME: &str = include_str!("../resources/welcome-vault/欢迎.md");
+const WELCOME_DOC_ZH_SHORTCUTS: &str = include_str!("../resources/welcome-vault/快捷键.md");
+const WELCOME_DOC_EN_WELCOME: &str = include_str!("../resources/welcome-vault/Welcome.md");
+const WELCOME_DOC_EN_SHORTCUTS: &str = include_str!("../resources/welcome-vault/Shortcuts.md");
+
+/// 确保"介绍仓库"文件已物化到用户数据目录（app_data_dir/welcome-vault），
+/// 返回仓库目录的绝对路径。文件已存在时跳过写入——用户对欢迎文档的
+/// 修改不会被应用升级覆盖。前端在首次启动（无该仓库注册记录）时调用。
+#[tauri::command]
+fn ensure_welcome_vault(app: tauri::AppHandle) -> Result<String, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("resolve app data dir failed: {e}"))?;
+    let dir = base.join("welcome-vault");
+    fs::create_dir_all(&dir).map_err(|e| format!("create welcome vault dir failed: {e}"))?;
+
+    const WELCOME_FILES: [(&str, &str); 4] = [
+        ("欢迎.md", WELCOME_DOC_ZH_WELCOME),
+        ("快捷键.md", WELCOME_DOC_ZH_SHORTCUTS),
+        ("Welcome.md", WELCOME_DOC_EN_WELCOME),
+        ("Shortcuts.md", WELCOME_DOC_EN_SHORTCUTS),
+    ];
+    for (name, content) in WELCOME_FILES {
+        let path = dir.join(name);
+        if !path.exists() {
+            fs::write(&path, content)
+                .map_err(|e| format!("write welcome doc {name} failed: {e}"))?;
+        }
+    }
+    Ok(dir.to_string_lossy().to_string())
+}
+
 /// CLI sidecar（tydora-cli）信息，供「设置 → CLI 与 MCP」页展示。
 ///
 /// 查找顺序：
@@ -1985,6 +2022,7 @@ pub fn run() {
             take_pending_files,
             has_pending_files,
             get_app_version,
+            ensure_welcome_vault,
             is_store_version,
             is_portable_version,
             check_github_update,

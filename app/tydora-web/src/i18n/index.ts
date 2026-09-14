@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import zhCN from "./locales/zh-CN.json";
 import enUS from "./locales/en-US.json";
+import { collectNavigatorLocales, detectSystemLanguage } from "./detect";
 
 // 启动计时埋点（i18n 是 main.tsx 早期 import，因此这部分运行极早）
 // 必须在"副作用发生前"检查 window 是否存在，避免 SSR / 测试环境 undefined
@@ -44,7 +45,10 @@ function getStoredLanguage(): SupportedLanguage {
   } catch {
     // localStorage unavailable
   }
-  return "en-US";
+  // 未手动设置过语言：跟随操作系统显示语言自动选择（中文系统 → zh-CN，
+  // 其余 → en-US）。不在此处持久化——用户在设置里手动切换时才会写入，
+  // 这样系统语言变化在用户表态前始终自动跟随。
+  return detectSystemLanguage(collectNavigatorLocales());
 }
 
 export function persistLanguage(lang: SupportedLanguage): void {

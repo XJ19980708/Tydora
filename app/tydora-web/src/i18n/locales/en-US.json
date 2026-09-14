@@ -782,6 +782,11 @@
         "graphSettings": "Graph Settings",
         "imageSettings": "Image Settings",
         "canvasSettings": "Canvas Settings",
+        "editorSettings": "Editor Settings",
+        "terminalSettings": "Terminal Settings",
+        "publishSettings": "Publish Settings",
+        "vimSettings": "Vim Mode Settings",
+        "cliSettings": "CLI & MCP Settings",
         "openVaultInNewWindow": "Open \"{{name}}\" in New Window",
         "about": "About",
         "toggleRightSidebar": "Toggle Right Sidebar"
@@ -807,6 +812,11 @@
         "graphSettings": "graph, relationship",
         "imageSettings": "image, picture",
         "canvasSettings": "canvas",
+        "editorSettings": "editor",
+        "terminalSettings": "terminal, shell",
+        "publishSettings": "publish",
+        "vimSettings": "vim, vim mode",
+        "cliSettings": "cli, mcp, command line",
         "about": "about, version"
       }
     }

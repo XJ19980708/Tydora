@@ -781,6 +781,11 @@
         "graphSettings": "关系图谱设置",
         "imageSettings": "图像设置",
         "canvasSettings": "白板设置",
+        "editorSettings": "编辑器设置",
+        "terminalSettings": "终端设置",
+        "publishSettings": "发布设置",
+        "vimSettings": "Vim 模式设置",
+        "cliSettings": "CLI 与 MCP 设置",
         "openVaultInNewWindow": "在新窗口打开「{{name}}」知识库",
         "about": "关于",
         "toggleRightSidebar": "切换右侧栏"
@@ -806,6 +811,11 @@
         "graphSettings": "图谱, graph, 关系",
         "imageSettings": "图像, image, 图片",
         "canvasSettings": "白板, canvas, 画布",
+        "editorSettings": "编辑器, editor",
+        "terminalSettings": "终端, terminal",
+        "publishSettings": "发布, publish",
+        "vimSettings": "vim, vim 模式",
+        "cliSettings": "cli, mcp, 命令行",
         "about": "about, 版本"
       }
     }

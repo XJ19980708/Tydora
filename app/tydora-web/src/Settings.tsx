@@ -8,6 +8,7 @@ import { loadImageSettings, saveImageSettings, type ImageSettings, type StorageM
 import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, type UpdateInfo } from "./services";
 import { PublishSettings } from "./publish";
 import CliMcpSettings from "./cli/CliMcpSettings";
+import { findSettingsSearchItem } from "./settings/settingsSearchIndex";
 import { loadCanvasSettings, saveCanvasSettings, type CanvasSettings } from "./Canvas/canvas-settings";
 import { TerminalSettingsContent } from "./Terminal/TerminalSettingsContent";
 import { VimSettingsPanel } from "./vim/settings/VimSettingsPanel";
@@ -2834,6 +2835,7 @@ function AboutSettingsContent() {
 // ── Main Settings Component ─────────────────────────────────────────
 
 const SETTINGS_NAV_WIDTH_KEY = "zmd-settings-nav-width";
+const SETTINGS_FOCUS_ITEM_KEY = "zmd-settings-focus-item";
 const SETTINGS_NAV_WIDTH_DEFAULT = 260;
 const SETTINGS_NAV_WIDTH_MIN = 180;
 const SETTINGS_NAV_WIDTH_MAX = 420;
@@ -2865,6 +2867,48 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     localStorage.setItem(SETTINGS_NAV_WIDTH_KEY, String(navWidth));
   }, [navWidth]);
+
+  // 命令面板「设置项级」跳转定位：App 侧把目标设置项 id 写入 localStorage，
+  // 本组件挂载后（对应标签页已渲染）按行标题文本匹配 DOM 行，
+  // 滚动到可见区域 + 获得键盘焦点 + 高亮标记（数秒后自动消退）。
+  useEffect(() => {
+    let focusId: string | null = null;
+    try {
+      focusId = localStorage.getItem(SETTINGS_FOCUS_ITEM_KEY);
+      if (focusId) localStorage.removeItem(SETTINGS_FOCUS_ITEM_KEY);
+    } catch { /* ignore */ }
+    if (!focusId) return;
+    const item = findSettingsSearchItem(focusId);
+    if (!item) return;
+    const targetLabel = t(item.labelKey).trim();
+    // 等待标签页内容渲染完成（lazy 组件 + i18n）
+    const timer = window.setTimeout(() => {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(".canvas-settings-row"));
+      let target = rows.find(
+        (r) => r.querySelector(".canvas-settings-row-title")?.textContent?.trim() === targetLabel
+      );
+      // 回退：分组标题（如「侧栏设置」是 section 标题而非行标题）→ 高亮其所在卡片
+      if (!target) {
+        const section = Array.from(document.querySelectorAll<HTMLElement>(".settings-section-title"))
+          .find((s) => s.textContent?.trim() === targetLabel);
+        if (section) {
+          target = (section.closest(".canvas-settings-card") as HTMLElement | null) ?? section;
+        }
+      }
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.setAttribute("tabindex", "-1");
+      target.classList.remove("settings-item-highlight");
+      // 强制 reflow，保证重复定位同一条目时动画能重新播放
+      void target.offsetWidth;
+      target.classList.add("settings-item-highlight");
+      target.focus({ preventScroll: true });
+      window.setTimeout(() => target?.classList.remove("settings-item-highlight"), 3200);
+    }, 180);
+    return () => window.clearTimeout(timer);
+    // 仅挂载时执行一次（App 每次跳转都会通过 settingsKey 重挂载本组件）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNavResizeMouseDown = useCallback((e: ReactMouseEvent) => {
     e.preventDefault();

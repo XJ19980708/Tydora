@@ -29,6 +29,10 @@ if (
     navigator.userAgent.includes("Mac OS"))
 ) {
   document.documentElement.classList.add("platform-macos");
+} else if (typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add("platform-windows");
+} else if (typeof navigator !== "undefined" && /Linux/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add("platform-linux");
 }
 
 // 开始接收 Rust boot-timing 事件（异步：不阻塞当前模块解析）

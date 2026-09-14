@@ -214,6 +214,21 @@ function pathSep(): string {
   return navigator.platform?.toLowerCase().includes("win") ? "\\" : "/";
 }
 
+// ── 介绍仓库（welcome-vault）：文档按界面语言过滤显示 ────────────────
+
+import { isWelcomeVaultPath, welcomeVaultVisibleDocs } from "./services/welcomeVault";
+
+/** 介绍仓库内按当前语言过滤文件节点：目录保留，文件只保留当前语言的文档。
+ *  文件顺序强制按文档清单排列（欢迎/Welcome 恒在最上），不受文件树排序设置影响。 */
+function filterWelcomeVaultNodes(nodes: TreeNode[], language: string): TreeNode[] {
+  const visible = welcomeVaultVisibleDocs(language);
+  const dirs = nodes.filter((n) => n.isDirectory);
+  const files = nodes
+    .filter((n) => !n.isDirectory && visible.includes(n.name))
+    .sort((a, b) => visible.indexOf(a.name) - visible.indexOf(b.name));
+  return [...dirs, ...files];
+}
+
 function joinPath(parent: string, child: string): string {
   const sep = pathSep();
   const clean = parent.endsWith("/") || parent.endsWith("\\") ? parent.slice(0, -1) : parent;
@@ -1527,6 +1542,8 @@ function FileTree({
   showFileIcons: boolean;
 }) {
   const vaultPath = rootPath;
+  // 订阅语言变化：介绍仓库的文档过滤依赖 i18n.language，切换语言时触发重载
+  useTranslation();
   const [rootNodes, setRootNodes] = useState<TreeNode[]>([]);
   const [, forceUpdate] = useState(0);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -1643,7 +1660,11 @@ function FileTree({
     const gen = ++loadGenRef.current;
     bootStart("sidebar_load_root");
     bootStamp("sidebar_load_dir_start");
-    const nodes = await loadDirectory(rootPath);
+    let nodes = await loadDirectory(rootPath);
+    // 介绍仓库：只显示当前界面语言对应的文档
+    if (isWelcomeVaultPath(vaultPath)) {
+      nodes = filterWelcomeVaultNodes(nodes, i18n.language);
+    }
     bootStamp("sidebar_load_dir_done");
     const expanded = new Set(loadExpandedPaths(vaultPath));
     for (const p of collectExpanded(rootNodesRef.current)) expanded.add(p);
@@ -1672,7 +1693,8 @@ function FileTree({
     setRootNodes(nodes);
     bootStamp("sidebar_setRootNodes_called");
     bootEnd("sidebar_load_root");
-  }, [rootPath, vaultPath, collectExpanded, restoreExpanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootPath, vaultPath, collectExpanded, restoreExpanded, i18n.language]);
 
   const handleRefresh = useCallback(() => {
     forceUpdate((n) => n + 1);
@@ -1688,11 +1710,16 @@ function FileTree({
         paths.add(expandPath);
       }
     }
-    const nodes = await loadDirectory(rootPath);
+    let nodes = await loadDirectory(rootPath);
+    // 介绍仓库：只显示当前界面语言对应的文档
+    if (isWelcomeVaultPath(rootPath)) {
+      nodes = filterWelcomeVaultNodes(nodes, i18n.language);
+    }
     await restoreExpanded(nodes, paths);
     setRootNodes(nodes);
     handleRefresh();
-  }, [rootPath, collectExpanded, restoreExpanded, handleRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootPath, collectExpanded, restoreExpanded, handleRefresh, i18n.language]);
 
   const handleSortChange = useCallback((settings: FileSortSettings) => {
     currentSortSettings = settings;

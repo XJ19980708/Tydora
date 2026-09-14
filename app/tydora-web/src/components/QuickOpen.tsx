@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import i18n from "../i18n";
+import { isWelcomeVaultPath, welcomeVaultVisibleDocs } from "../services/welcomeVault";
 import { VaultInfo } from "../Sidebar";
 import { useDebounce } from "../hooks/useDebounce";
 import { parseTagSearchQuery, resolveTagFileSet, type TagSearchQuery } from "../tags";
@@ -28,6 +30,10 @@ export interface FileItem {
 // 递归获取仓库中所有文件
 async function getAllFiles(dirPath: string): Promise<FileItem[]> {
   const files: FileItem[] = [];
+  // 介绍仓库：只索引当前界面语言对应的文档
+  const welcomeVisible = isWelcomeVaultPath(dirPath)
+    ? welcomeVaultVisibleDocs(i18n.language)
+    : null;
 
   async function walk(dir: string) {
     try {
@@ -39,6 +45,7 @@ async function getAllFiles(dirPath: string): Promise<FileItem[]> {
         if (entry.isDirectory) {
           await walk(fullPath);
         } else if (entry.isFile) {
+          if (welcomeVisible && !welcomeVisible.includes(entry.name || "")) continue;
           files.push({
             name: entry.name || "",
             path: fullPath,
