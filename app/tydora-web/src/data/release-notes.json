@@ -1,39 +1,15 @@
 {
   "generatedAt": "2026-09-14",
-  "current": "0.2.7",
+  "current": "0.2.8",
   "versions": [
     {
-      "version": "0.2.7",
-      "date": "2026-09-11",
+      "version": "0.2.8",
+      "date": "2026-09-14",
       "released": false,
       "groups": [
         {
           "group": "feat",
           "items": [
-            {
-              "text": "tydora-core + tydora-cli Phase 1-5",
-              "hash": "b7584cd"
-            },
-            {
-              "text": "add TagPanel component with list and graph views, including tag filtering and search functionality",
-              "hash": "a4d683c"
-            },
-            {
-              "text": "enhance view state management for cross-mode editor transitions",
-              "hash": "30adf45"
-            },
-            {
-              "text": "添加右侧栏切换功能，更新快捷键配置和国际化支持",
-              "hash": "417eb80"
-            },
-            {
-              "text": "更新欢迎页品牌区样式，调整图标尺寸并修改不透明度",
-              "hash": "83fac21"
-            },
-            {
-              "text": "更新版本号至 0.2.7，修改相关文档和配置文件",
-              "hash": "75a6522"
-            },
             {
               "text": "支持导入 Markdown 文档与整个文件夹树",
               "hash": "411b505"
@@ -41,16 +17,16 @@
             {
               "text": "关于页新增版本更新说明",
               "hash": "6066064"
+            },
+            {
+              "text": "导入镜像支持手动重新同步",
+              "hash": "a8044e9"
             }
           ]
         },
         {
           "group": "fix",
           "items": [
-            {
-              "text": "修复 Windows 便携版打包逻辑，支持多种可执行文件名",
-              "hash": "12329f9"
-            },
             {
               "text": "修复任务管理器窗口图标显示噪点花纹",
               "hash": "acaf468"
@@ -67,12 +43,17 @@
           ]
         },
         {
-          "group": "chore",
+          "group": "test",
           "items": [
             {
-              "text": "更新版本号至 0.2.6",
-              "hash": "cc8a94c"
-            },
+              "text": "补「导入镜像 / 重新同步」回归测试用例",
+              "hash": "8a68b37"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
             {
               "text": "替换应用 logo 为自定义图标",
               "hash": "c062fb6"
@@ -80,6 +61,100 @@
             {
               "text": "合并上游后重建 Cargo.lock",
               "hash": "cab78ab"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock",
+              "hash": "b9f3ea7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.8",
+      "date": "2026-09-12",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "添加图片加载兜底逻辑，支持通过 fs 插件读取本地图片并转为 blob URL",
+              "hash": "2ce53a8"
+            },
+            {
+              "text": "add MCP implementation plan and CLI build script",
+              "hash": "0f9dd59"
+            },
+            {
+              "text": "更新版本号至 0.2.8，修改相关文档和配置文件",
+              "hash": "dc77f4e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.7",
+      "date": "2026-09-10",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "enhance view state management for cross-mode editor transitions",
+              "hash": "30adf45"
+            },
+            {
+              "text": "添加右侧栏切换功能，更新快捷键配置和国际化支持",
+              "hash": "417eb80"
+            },
+            {
+              "text": "更新欢迎页品牌区样式，调整图标尺寸并修改不透明度",
+              "hash": "83fac21"
+            },
+            {
+              "text": "更新版本号至 0.2.7，修改相关文档和配置文件",
+              "hash": "75a6522"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.6",
+      "date": "2026-09-10",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "tydora-core + tydora-cli Phase 1-5",
+              "hash": "b7584cd"
+            },
+            {
+              "text": "add TagPanel component with list and graph views, including tag filtering and search functionality",
+              "hash": "a4d683c"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复 Windows 便携版打包逻辑，支持多种可执行文件名",
+              "hash": "12329f9"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "更新版本号至 0.2.6",
+              "hash": "cc8a94c"
             }
           ]
         }
