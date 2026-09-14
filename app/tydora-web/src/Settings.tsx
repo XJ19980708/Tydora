@@ -163,7 +163,7 @@ export const DEFAULT_GENERAL: GeneralSettings = {
   irLineNumbers: true,
   expandOutlineOnOpen: true,
   codeBlockToolbarStyle: "minimal",
-  menuDensity: "compact",
+  menuDensity: "normal",
   sidebarTabPlacement: {
     files: "left",
     search: "left",
