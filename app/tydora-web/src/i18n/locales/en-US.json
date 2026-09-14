@@ -1043,7 +1043,12 @@
       "table": "Table",
       "codeBlock": "Code Block",
       "mathBlock": "Math Block",
+      "toc": "Table of Contents",
       "wikiLink": "WikiLink"
+    },
+    "tocBlock": {
+      "title": "Table of Contents",
+      "empty": "No headings found"
     },
     "linkDialog": {
       "title": "Insert Link",

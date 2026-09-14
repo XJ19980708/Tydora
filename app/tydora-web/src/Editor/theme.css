@@ -2817,3 +2817,56 @@ html:not([data-code-block-toolbar="classic"]) .code-block-content {
 .tiptap-editor .katex {
   font-size: 1.05em;
 }
+/* ── [TOC] 内容目录节点 ── */
+.tiptap-editor .toc-block {
+  border: 1px solid var(--border, #d4d4d4);
+  border-left: 3px solid var(--accent, #2563eb);
+  border-radius: 6px;
+  background: var(--bg-secondary, #f8f8f8);
+  padding: 10px 14px;
+  margin: 0.6em 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tiptap-editor .toc-block-title {
+  font-weight: 600;
+  font-size: 1.05em;
+  margin-bottom: 6px;
+  color: var(--text-primary, #222);
+}
+
+.tiptap-editor .toc-block-empty {
+  color: var(--text-secondary, #999);
+  font-size: 0.9em;
+}
+
+.tiptap-editor .toc-entry {
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-primary, #222);
+  font-size: 0.95em;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tiptap-editor .toc-entry:hover {
+  background: color-mix(in srgb, var(--accent, #2563eb) 10%, transparent);
+  color: var(--accent, #2563eb);
+}
+
+.tiptap-editor .toc-block.ProseMirror-selectednode {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+
+/* 导出预览（静态 HTML）中的占位样式 */
+.tiptap-export-content .toc-block {
+  border: 1px solid var(--border, #d4d4d4);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 1em 0;
+}

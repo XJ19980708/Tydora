@@ -26,7 +26,6 @@ hljs.registerLanguage("bash", bashLang);
 interface CliSidecarInfo {
   available: boolean;
   path: string | null;
-  version: string | null;
 }
 
 interface VaultInfo {

@@ -1043,7 +1043,12 @@
       "table": "表格",
       "codeBlock": "代码块",
       "mathBlock": "公式块",
+      "toc": "内容目录",
       "wikiLink": "WikiLink"
+    },
+    "tocBlock": {
+      "title": "目录",
+      "empty": "暂无标题"
     },
     "linkDialog": {
       "title": "插入链接",

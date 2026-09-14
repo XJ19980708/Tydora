@@ -211,6 +211,11 @@ export function executeCommand(name: string, editor: Editor | null) {
       }).run();
       break;
 
+    // 内容目录：插入 [TOC] 节点（IR 模式下由 toc 扩展的 NodeView 渲染真实目录）
+    case "toc":
+      chain.insertContent({ type: "toc" }).run();
+      break;
+
     // 编辑
     case "undo":
       chain.undo().run();

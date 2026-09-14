@@ -33,6 +33,7 @@ import { common, createLowlight } from "lowlight";
 import { Frontmatter } from "./extensions/frontmatter";
 import { StripStyle } from "./extensions/strip-style";
 import { Callout } from "./extensions/callout";
+import { Toc } from "./extensions/toc";
 import { Mermaid } from "./extensions/mermaid";
 import { WikiLink } from "./extensions/wiki-link";
 import { Tag } from "./extensions/tag";
@@ -86,6 +87,56 @@ function getEditorView(editor: any): import("prosemirror-view").EditorView | nul
   } catch {
     return null;
   }
+}
+
+/**
+ * 滚动到指定标题并高亮（目录锚点链接 #标题 跳转共用）。
+ * 匹配规则与 scrollToHeading 一致：全文匹配 > 双向包含（按长度比例给分）。
+ */
+function scrollEditorToHeading(
+  editor: Editor,
+  container: HTMLElement | null,
+  rawText: string,
+): void {
+  const cleanText = rawText.replace(/[#*_`~]/g, "").trim();
+  if (!cleanText) return;
+
+  const { doc } = editor.state;
+  let bestPos: number | null = null;
+  let bestScore = 0;
+
+  doc.descendants((node: any, pos: number) => {
+    if (node.type.name === "heading") {
+      const headingText = node.textContent.replace(/[#*_`~]/g, "").trim();
+      let score = 0;
+      if (headingText === cleanText) {
+        score = 100;
+      } else if (headingText.includes(cleanText) || cleanText.includes(headingText)) {
+        score = (Math.min(headingText.length, cleanText.length) /
+          Math.max(headingText.length, cleanText.length)) * 50;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestPos = pos;
+      }
+    }
+  });
+
+  if (bestPos === null || bestScore <= 0) return;
+  const targetPos = bestPos as number;
+  editor.chain().focus().setTextSelection(targetPos).run();
+  editor.commands.highlightHeading(targetPos, 1500);
+
+  requestAnimationFrame(() => {
+    const scrollContainer = container?.querySelector(".tiptap-editor");
+    if (!scrollContainer) return;
+    const view = getEditorView(editor);
+    const coords = view?.coordsAtPos?.(targetPos);
+    if (coords) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      scrollContainer.scrollTop += coords.top - containerRect.top - 20;
+    }
+  });
 }
 
 /** macOS WKWebView：折叠选区后清掉原生 Selection 残留（尤其跨块选区后点击）。 */
@@ -1244,6 +1295,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         StripStyle,
         ...(editorSettings?.frontmatter !== false ? [Frontmatter] : []),
         ...(editorSettings?.callout !== false ? [Callout] : []),
+        Toc,
         ...(editorSettings?.mermaid !== false ? [Mermaid] : []),
         ...(editorSettings?.wikiLink !== false ? [WikiLink] : []),
         ...(editorSettings?.math !== false
@@ -1806,6 +1858,18 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         e.preventDefault();
         e.stopPropagation();
 
+        // 纯锚点链接（#标题，目录/脚注引用）：滚动到对应标题并高亮
+        if (href.startsWith("#")) {
+          let hashText = href.slice(1);
+          try {
+            hashText = decodeURIComponent(hashText);
+          } catch {
+            /* 保留原始文本 */
+          }
+          scrollEditorToHeading(editor, containerRef.current, hashText);
+          return;
+        }
+
         if (href.startsWith("http://") || href.startsWith("https://")) {
           invoke("open_url", { url: href });
         } else if (!href.startsWith("wikilink://")) {
@@ -2014,10 +2078,10 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
             case "align-right": {
               const align = op === "align-left" ? "left"
                          : op === "align-center" ? "center" : "right";
-              // 先试 table 单元格级（光标在单元格内时生效，setCellAttribute 返回 false 时 fallback 到段落）
+              // 先试 table 单元格级（光标/多选在单元格内时生效，setCellAttribute 返回 false 时 fallback 到段落）
               let ok = false;
               try {
-                ok = (ed.chain().focus() as any).setCellAttribute?.("textAlign", align)?.run?.() ?? false;
+                ok = (ed.chain().focus() as any).setCellAttribute?.("align", align)?.run?.() ?? false;
               } catch { ok = false; }
               if (!ok) {
                 ok = ed.chain().focus().updateAttributes("paragraph", { textAlign: align }).run();
@@ -2188,52 +2252,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       },
       scrollToHeading: (text: string, _line: number) => {
         if (!editor) return;
-        const cleanText = text.replace(/[#*_`~]/g, "").trim();
-
-        // 查找文档中的标题节点
-        const { doc } = editor.state;
-        let bestPos: number | null = null;
-        let bestScore = 0;
-
-        doc.descendants((node: any, pos: number) => {
-          if (node.type.name === "heading") {
-            const headingText = node.textContent.replace(/[#*_`~]/g, "").trim();
-            let score = 0;
-            if (headingText === cleanText) {
-              score = 100;
-            } else if (headingText.includes(cleanText) || cleanText.includes(headingText)) {
-              score = (Math.min(headingText.length, cleanText.length) /
-                Math.max(headingText.length, cleanText.length)) * 50;
-            }
-            if (score > bestScore) {
-              bestScore = score;
-              bestPos = pos;
-            }
-          }
-        });
-
-        if (bestPos !== null && bestScore > 0) {
-          editor.chain().focus().setTextSelection(bestPos).run();
-          
-          // 高亮标题文字 1.5 秒
-          editor.commands.highlightHeading(bestPos, 1500);
-          
-          // 使用 requestAnimationFrame 确保编辑器更新后滚动
-          requestAnimationFrame(() => {
-            // 滚动容器是 .tiptap-editor，不是 editor-container
-            const scrollContainer = containerRef.current?.querySelector('.tiptap-editor');
-            if (!scrollContainer) return;
-            
-            const view = getEditorView(editor);
-            const coords = view?.coordsAtPos?.(bestPos!);
-            if (coords) {
-              const containerRect = scrollContainer.getBoundingClientRect();
-              // 计算滚动距离：元素在视口的位置 - 容器在视口的位置 - 顶部边距
-              const scrollDistance = coords.top - containerRect.top - 20;
-              scrollContainer.scrollTop += scrollDistance;
-            }
-          });
-        }
+        scrollEditorToHeading(editor, containerRef.current, text);
       },
       scrollToLine: (line: number) => {
         if (!editor) return;

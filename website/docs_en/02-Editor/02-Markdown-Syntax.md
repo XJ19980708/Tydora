@@ -209,7 +209,7 @@ The following syntax is treated as **plain text** in Tydora and does not render 
 | Syntax | Notes |
 | --- | --- |
 | `[^1]` footnotes | Not rendered as a footnote section — shown as text only (the right-click "Insert Footnote" command inserts a `[^1]: ` text placeholder) |
-| `[toc]` table of contents | No automatic TOC; use the sidebar "Outline" tab instead — see [[05-Navigation-Search/03-Outline-Panel]] |
+| `[toc]` table of contents | Supported. A standalone `[toc]` line (case-insensitive) renders as a clickable TOC; clicking an entry jumps to the heading. Also available via right-click menu "Insert → Table of Contents" or the command palette |
 | `X^2^` / `H~2~O` superscript/subscript | Not rendered; for math use formula syntax `$X^2$` / `$H_2O$` |
 | `[[Note Name^block-id]]` block references | Block-level references are not supported; use `[[Note Name#Heading]]` instead |
 

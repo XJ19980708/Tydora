@@ -176,18 +176,19 @@ fn get_app_version(app: tauri::AppHandle) -> String {
 /// 2. 开发环境兜底：cwd 的 `binaries/`（`cargo tauri dev` 时 cwd =
 ///    app/tydora-desktop/，cli-build.sh 会把裸名副本放进去）
 ///
-/// `version` 通过 spawn `tydora-cli --version` 获取（CLI 启动即返回，无阻塞风险）；
-/// spawn 失败不影响 available 判定。
+/// **不做子进程探测**：早期版本会 spawn `tydora-cli --version` 取版本号，
+/// 但设置页已按需求不展示版本号，而 spawn 在安装版首次运行时会被
+/// Defender/SmartScreen 扫描未签名 exe 阻塞数秒以上——同步命令跑在
+/// 主线程上导致所有窗口假死。文件存在性检查是纯元数据操作，微秒级。
 #[derive(serde::Serialize)]
 struct CliSidecarInfo {
     available: bool,
     path: Option<String>,
-    version: Option<String>,
 }
 
 #[tauri::command]
 fn cli_sidecar_info() -> CliSidecarInfo {
-    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             if cfg!(windows) {
@@ -206,23 +207,15 @@ fn cli_sidecar_info() -> CliSidecarInfo {
 
     for c in candidates {
         if c.is_file() {
-            let version = std::process::Command::new(&c)
-                .arg("--version")
-                .output()
-                .ok()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .filter(|s| !s.is_empty());
             return CliSidecarInfo {
                 available: true,
                 path: Some(c.to_string_lossy().into_owned()),
-                version,
             };
         }
     }
     CliSidecarInfo {
         available: false,
         path: None,
-        version: None,
     }
 }
 
