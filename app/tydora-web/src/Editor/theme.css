@@ -26,8 +26,7 @@
   transition: background-color 0.15s ease;
 }
 
-.tiptap-editor[data-scrolling]::-webkit-scrollbar-thumb,
-.tiptap-editor:hover::-webkit-scrollbar-thumb {
+.tiptap-editor[data-scrolling]::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb, var(--border));
   transition: background-color 0s;
 }
@@ -41,7 +40,6 @@
   scrollbar-color: transparent transparent;
 }
 
-.tiptap-editor:hover,
 .tiptap-editor[data-scrolling] {
   scrollbar-color: var(--scrollbar-thumb, var(--border)) var(--scrollbar-track, transparent);
 }
@@ -64,8 +62,7 @@
   transition: background-color 0.15s ease;
 }
 
-.cm-editor .cm-scroller[data-scrolling]::-webkit-scrollbar-thumb,
-.cm-editor .cm-scroller:hover::-webkit-scrollbar-thumb {
+.cm-editor .cm-scroller[data-scrolling]::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb, var(--border));
   transition: background-color 0s;
 }
@@ -79,7 +76,6 @@
   scrollbar-color: transparent transparent;
 }
 
-.cm-editor .cm-scroller:hover,
 .cm-editor .cm-scroller[data-scrolling] {
   scrollbar-color: var(--scrollbar-thumb, var(--border)) var(--scrollbar-track, transparent);
 }

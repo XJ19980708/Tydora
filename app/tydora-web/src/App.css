@@ -357,7 +357,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  /* 极低透明度保证滚动条槽可命中；真正显色由 :hover / [data-scrolling] 控制 */
+  /* 极低透明度保证滚动条槽可命中；真正显色由 [data-scrolling] / thumb:hover 控制 */
   background-color: color-mix(in srgb, var(--scrollbar-thumb, var(--border)) 1%, transparent);
   border-radius: var(--radius-scrollbar, 4px);
   background-clip: padding-box;
@@ -365,9 +365,9 @@
   transition: background-color 0.15s ease;
 }
 
-/* 滚动中，或鼠标悬停在可滚动容器上时显示滑块 */
-[data-scrolling]::-webkit-scrollbar-thumb,
-*:hover::-webkit-scrollbar-thumb {
+/* 仅滚动过程中显示滑块（JS 在滚动时给容器挂 data-scrolling，停止 400ms 后移除）。
+   注意不要加容器级 :hover 触发——悬停侧栏/编辑区不应点亮滚动条 */
+[data-scrolling]::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb, var(--border));
   transition: background-color 0s;
 }
@@ -382,7 +382,6 @@
   scrollbar-color: transparent transparent;
 }
 
-*:hover,
 [data-scrolling] {
   scrollbar-color: var(--scrollbar-thumb, var(--border)) var(--scrollbar-track, transparent);
 }
