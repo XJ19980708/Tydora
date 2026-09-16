@@ -1,5 +1,6 @@
 import { Node, nodeInputRule, mergeAttributes } from "@tiptap/core";
 import type { Node as ProsemirrorNode } from "@tiptap/pm/model";
+import { installTocBlockRule, isTocLine } from "./toc-markdown";
 import i18n from "../../i18n";
 
 /**
@@ -32,10 +33,20 @@ function collectHeadings(doc: ProsemirrorNode): HeadingEntry[] {
 
 export const Toc = Node.create({
   name: "toc",
-  // parse 规则要先于 paragraph：markdown-it 把 `[TOC]` 渲染成 <p>[TOC]</p>，
-  // 必须让本节点优先把它认领为 toc 节点而不是普通段落
-  priority: 200,
-
+  /**
+   * 注意：这里刻意不提高 priority。
+   *
+   * 背景：markdown-it 把 `[TOC]` 渲染成 <p>[TOC]</p>，而 TipTap v3 的 paragraph
+   * 扩展 priority = 1000，普通 <p> 的 parseHTML 规则总是先命中，因此下面的
+   * `tag: "p"` 规则实际上不会生效（HTML 直传时 [TOC] 会退化成普通段落）。
+   * 真正生效的是 markdown 解析路径：toc-markdown.ts 里让独立 `[TOC]` 行直接渲染为
+   * <div data-toc="true"></div>，由下面无歧义的 div 规则认领 —— 这与 mermaid /
+   * callout 等扩展的做法一致，重开文件、外部刷新、粘贴等所有重新解析路径都稳定。
+   *
+   * 千万不要为了「让 p 规则生效」而把本扩展 priority 提到 1000 以上：
+   * priority 会重排 schema 里的节点顺序，toc 排到首位后 doc 的默认块类型会变成 toc，
+   * 于是空文档 / 空段落填充（如 StarterKit 的 trailingNode）会生成多余的 TOC 节点。
+   */
   group: "block",
   atom: true,
   selectable: true,
@@ -46,9 +57,11 @@ export const Toc = Node.create({
       { tag: "div[data-toc]" },
       {
         tag: "p",
+        // 兜底规则（HTML 直传场景）。必须返回 false 才能让出规则给 paragraph：
+        // TipTap 会把 getAttrs 的返回值并入扩展属性（{...null} === {}），
+        // 返回 null 会被当成空属性对象，从而误命中所有段落。
         getAttrs: (element) => {
-          const text = (element as HTMLElement).textContent?.trim().toLowerCase();
-          return text === "[toc]" ? {} : null;
+          return isTocLine((element as HTMLElement).textContent) ? {} : false;
         },
       },
     ];
@@ -66,7 +79,14 @@ export const Toc = Node.create({
           state.closeBlock(node);
         },
         parse: {
-          // 由 markdown-it 渲染 <p>[TOC]</p> + 上面的 parseHTML 规则处理
+          /**
+           * 让「独占一行的 [TOC]」直接渲染成 <div data-toc="true"></div>：
+           * 这条规则不依赖 parseHTML 的优先级排序，重开文件、外部刷新、
+           * 粘贴等所有重新解析路径都能稳定还原成 toc 节点。
+           */
+          setup(md: any) {
+            installTocBlockRule(md);
+          },
         },
       },
     };

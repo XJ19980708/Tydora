@@ -25,6 +25,7 @@ import { prefixMConfig } from "../vim/config/prefixM";
 import { prefixGConfig } from "../vim/config/prefixG";
 import { prefixZConfig } from "../vim/config/prefixZ";
 import { prefixTConfig } from "../vim/config/prefixT";
+import { computeTextPatch } from "./text-patch";
 
 
 // 判断是否为 Markdown 文件
@@ -985,17 +986,17 @@ const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProp
       const currentContent = viewRef.current.state.doc.toString();
       if (value !== currentContent) {
         isInternalRef.current = true;
-        viewRef.current.dispatch({
-          changes: {
-            from: 0,
-            to: viewRef.current.state.doc.length,
-            insert: value,
-          },
-          // 文件切换时重置光标到文档开头，避免后续 focus() 将旧选区位置滚动到视图中
-          selection: fileChanged ? { anchor: 0 } : undefined,
-        });
-        // 文件切换时重置滚动位置到顶部
         if (fileChanged) {
+          viewRef.current.dispatch({
+            changes: {
+              from: 0,
+              to: viewRef.current.state.doc.length,
+              insert: value,
+            },
+            // 文件切换时重置光标到文档开头，避免后续 focus() 将旧选区位置滚动到视图中
+            selection: { anchor: 0 },
+          });
+          // 文件切换时重置滚动位置到顶部
           requestAnimationFrame(() => {
             const scroller = viewRef.current?.scrollDOM;
             if (scroller) {
@@ -1003,6 +1004,14 @@ const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProp
               scroller.scrollLeft = 0;
             }
           });
+        } else {
+          // 同文件外部内容更新（如 AI agent 写入）：最小差异替换。
+          // 选区由 CodeMirror 按变更自动映射，光标在未变更区域时位置不变，
+          // 滚动视口不受影响，DOM 只更新差异部分（防闪烁、低开销）。
+          const patch = computeTextPatch(currentContent, value);
+          if (patch) {
+            viewRef.current.dispatch({ changes: [patch] });
+          }
         }
       }
     }, [value, filePath]);

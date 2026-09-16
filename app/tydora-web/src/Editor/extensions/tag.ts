@@ -1,6 +1,7 @@
 // src/Editor/extensions/tag.ts
 
 import { Node, mergeAttributes, InputRule } from "@tiptap/core";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 
 /** 标签字符转义 */
 function encodeTag(s: string): string {
@@ -191,6 +192,8 @@ export const Tag = Node.create({
         },
         parse: {
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "md_tag")) return;
             // 在 markdown-it 解析 inline 内容之前，将 #tag 替换为 HTML span
             // Obsidian 约定：# 文本（空格）= 标题；#文本（无空格）= 标签
             // 标签名的 [^\s]+ 部分天然排除了 "# 标题"（空格后才是内容）这种写法

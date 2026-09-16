@@ -39,13 +39,18 @@ export function useVaultWatcher(
   vaultPath: string | null,
   onIndexChange?: () => void,
   onStructureChange?: () => void,
+  onContentChange?: (paths: string[]) => void,
 ) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const structureDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const contentDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const contentPathsRef = useRef<Set<string>>(new Set());
   const onIndexChangeRef = useRef(onIndexChange);
   const onStructureChangeRef = useRef(onStructureChange);
+  const onContentChangeRef = useRef(onContentChange);
   onIndexChangeRef.current = onIndexChange;
   onStructureChangeRef.current = onStructureChange;
+  onContentChangeRef.current = onContentChange;
 
   useEffect(() => {
     if (!vaultPath) return;
@@ -74,6 +79,23 @@ export function useVaultWatcher(
         onIndexChangeRef.current?.();
       }, 300);
 
+      // 3) 编辑器内容刷新：内容被外部修改（如 AI agent 写入）时收集路径，
+      //    300ms debounce 合并连续写入后批量回调。Metadata（atime/mtime）不算内容变化；
+      //    即便混入噪声事件，消费方重读后内容一致也会自然跳过。
+      if (kind.startsWith("Modify(") && !kind.includes("Metadata")) {
+        for (const p of paths) {
+          if (p.endsWith(".md") && !isNoisePath(p)) contentPathsRef.current.add(p);
+        }
+        if (contentPathsRef.current.size > 0) {
+          clearTimeout(contentDebounceRef.current);
+          contentDebounceRef.current = setTimeout(() => {
+            const changed = Array.from(contentPathsRef.current);
+            contentPathsRef.current.clear();
+            onContentChangeRef.current?.(changed);
+          }, 300);
+        }
+      }
+
       // 2) 文件树结构刷新：仅结构性变化、且非噪声路径
       if (STRUCTURAL_KIND_RE.test(kind)) {
         const hasRelevant = paths.some(p => !isNoisePath(p));
@@ -92,6 +114,7 @@ export function useVaultWatcher(
       invoke('unwatch_vault').catch(console.error);
       clearTimeout(debounceRef.current);
       clearTimeout(structureDebounceRef.current);
+      clearTimeout(contentDebounceRef.current);
     };
   }, [vaultPath]);
 }

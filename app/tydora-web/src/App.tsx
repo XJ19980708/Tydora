@@ -1187,13 +1187,17 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     return () => window.clearTimeout(handle);
   }, [activeVaultIndex, vaults]);
 
-  // 文件监听：外部文件变化时自动更新索引，并刷新文件树（结构性变化）
+  // 文件监听：外部文件变化时自动更新索引，并刷新文件树（结构性变化）。
+  // 内容变化回调经 ref 转发：reloadExternallyChangedBuffers 定义在组件下方，
+  // 通过运行时赋值解耦 hook 调用顺序与回调声明顺序。
   const [graphRefreshKey, forceIndexRerender] = useState(0);
+  const externalContentChangeRef = useRef<(paths: string[]) => void>(() => {});
   const vaultPath = activeVaultIndex >= 0 ? vaults[activeVaultIndex]?.path : null;
   useVaultWatcher(
     vaultPath,
     useCallback(() => forceIndexRerender(n => n + 1), []),
     useCallback(() => setTreeRefreshKey(k => k + 1), []),
+    useCallback((paths: string[]) => externalContentChangeRef.current(paths), []),
   );
 
   useEffect(() => {
@@ -1459,6 +1463,33 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
   // 兼容包装：对激活窗格的内容变更（供 CodeMirror / 自动补全选中回调等既有调用点使用）
   const handleChange = useCallback((value: string) => handlePaneChange(activePaneIdRef.current, value), [handlePaneChange]);
+
+  // 外部修改自动刷新：vault watcher 检测到文件内容被外部（如 AI agent）改动时，
+  // 重读对应缓冲，让编辑器无需重新打开即可展示最新内容。
+  // - 仅刷新「无未保存修改」的缓冲：缓冲处于编辑态（modified）时跳过，避免覆盖用户输入；
+  //   用户保存（手动/自动）后的下一次外部写入会恢复刷新。
+  // - 与磁盘内容一致的写回（本应用自己保存触发的 watcher 回声）会被忽略。
+  const reloadExternallyChangedBuffers = useCallback(async (paths: string[]) => {
+    const norm = (p: string) => p.replace(/\\/g, "/").toLowerCase();
+    for (const changedPath of paths) {
+    const buf = buffersRef.current.find((b) => b.fileName && norm(b.fileName) === norm(changedPath));
+    if (!buf || !buf.fileName || buf.modified) continue;
+    try {
+      const text = await readTextFile(buf.fileName);
+        const fresh = buffersRef.current.find((b) => b.id === buf.id);
+        // 读取期间缓冲被切换/进入编辑态，或内容与磁盘一致，跳过
+        if (!fresh || fresh.modified || text === fresh.savedContent || text === fresh.content) continue;
+        updateBuffer(buf.id, { content: text, savedContent: text, modified: false });
+        if (buf.id === activeBufferIdRef.current) {
+          setSaveStatus("idle");
+          syncMindmapContent(text);
+        }
+      } catch {
+        // 文件可能正在被写入，等待下一次 watcher 事件
+      }
+    }
+  }, [updateBuffer, syncMindmapContent]);
+  externalContentChangeRef.current = (paths: string[]) => { void reloadExternallyChangedBuffers(paths); };
 
   // 用 ref 保存激活缓冲内容最新值，供仅在挂载时注册的快捷键（如思维导图）读取
   const contentRef = useRef(content);
