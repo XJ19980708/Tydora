@@ -1,0 +1,106 @@
+# Maintainer: zuorn <zuorn@qq.com>
+#
+# ─────────────────────────────────────────────────────────────────────────────
+#  Tydora —— 官方预编译产物重打包（避免 20+ 分钟的 Rust + npm 构建）
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  直接取 GitHub Release 里 tauri-bundler 产出的 .deb，拆开重装。之所以能用
+#  Debian 包：.deb 就是「ar + tar 归档」，纯数据，和发行版的包管理器无关；
+#  里面的 ELF 动态链接到 libwebkit2gtk-4.1.so.0 / libgtk-3.so.0 等 soname，
+#  Arch 上同名同 ABI，可直接跑（上游 CI 在 ubuntu-22.04 上构建，glibc 较老，
+#  Arch 的新 glibc 向后兼容）。
+#
+#  .deb 内部布局（已核对 0.2.9 的 amd64 / arm64 两份，结构一致）：
+#    usr/bin/tydora-desktop                                 主程序（cargo bin 名）
+#    usr/bin/tydora-cli                                     CLI sidecar
+#    usr/share/applications/Tydora.desktop                  tauri-bundler 生成的入口
+#    usr/share/icons/hicolor/{32x32,128x128,256x256@2}/apps/tydora-desktop.png
+#
+#  重打包时做的三处规范化（与源码包 tydora 保持完全一致的安装布局）：
+#    1. 主程序改名成 /usr/bin/tydora；
+#    2. 图标名 tydora-desktop.png → tydora.png；
+#    3. 图标目录 256x256@2（不是合法的 hicolor 尺寸目录）→ 256x256，
+#       并换掉上游那份 Categories 为空、且没有 MimeType 的 .desktop。
+#  这样用户在 tydora 与 tydora-bin 之间切换时不会留下孤立的图标/入口。
+# ─────────────────────────────────────────────────────────────────────────────
+
+pkgname=tydora-bin
+pkgver=0.2.9
+pkgrel=1
+pkgdesc="A modern Markdown editor built with Tauri: WYSIWYG and source modes, wiki-links, graph, canvas, terminal"
+arch=('x86_64' 'aarch64')
+url="https://github.com/zuorn/Tydora"
+# 以仓库 LICENSE 与两份 README 的声明为准（Apache-2.0）；
+# 注意 app/Cargo.toml 的 [workspace.package] license 写的是 "MIT"，与 LICENSE 不符。
+license=('Apache')
+depends=(
+  'gtk3'            # libgtk-3.so.0 / libgdk-3.so.0
+  'libsoup3'        # libsoup-3.0.so.0
+  'openssl'         # libssl.so.3 / libcrypto.so.3（reqwest 走 native-tls）
+  'webkit2gtk-4.1'  # libwebkit2gtk-4.1.so.0 / libjavascriptcoregtk-4.1.so.0
+  'xdg-utils'       # 打开外部链接 / 在文件管理器中定位文件（内部调 xdg-open）
+)
+optdepends=('nodejs: publish features (needs the markdown-publish CLI)')
+provides=('tydora')
+conflicts=('tydora')
+# 上游产物本来就是 strip = "symbols" 出来的；不要再动它，也不打 -debug 包。
+options=('!strip' '!debug')
+# 发行包文件名带平台顺序前缀 03-（上游 release.yml 为让资源排序稳定而加的）
+source_x86_64=("$pkgname-$pkgver.deb::https://github.com/zuorn/Tydora/releases/download/v$pkgver/03-Tydora_${pkgver}_amd64.deb")
+sha256sums_x86_64=('f6b3f8e7ed966561af9c05993c0a9779d6c78d4043e312d3b79f77d6d87fa88b')
+source_aarch64=("$pkgname-$pkgver.deb::https://github.com/zuorn/Tydora/releases/download/v$pkgver/03-Tydora_${pkgver}_arm64.deb")
+sha256sums_aarch64=('45558f2dc9efaab68f6cb0538ddd79f7b0f84a3c8770494a7787eb39e7d1285f')
+
+prepare() {
+  # makepkg 不认识 .deb（不会自动解开），这里手工拆成 control.tar.gz / data.tar.gz；
+  # 用 bsdtar 而不是 dpkg-deb，避免引入 dpkg 作为 makedepends。
+  mkdir -p deb root
+  bsdtar -xf "$srcdir/$pkgname-$pkgver.deb" -C deb
+  tar -xzf deb/data.tar.gz -C root
+}
+
+package() {
+  cd "$srcdir"
+
+  # ── 主程序 ───────────────────────────────────────────────────────────────
+  # ⚠️ 必须叫 tydora：tauri.conf.json 没开 app.enable_gtk_app_id，GTK 用 argv[0]
+  #    作为 WM_CLASS，下面 .desktop 的 StartupWMClass 要和它一致。
+  install -Dm755 root/usr/bin/tydora-desktop "$pkgdir/usr/bin/tydora"
+
+  # ── CLI sidecar ─────────────────────────────────────────────────────────
+  # 必须与主程序同目录：桌面端「设置 → CLI 与 MCP」按 current_exe().parent()
+  # 下的 tydora-cli 探测（src/lib.rs::cli_sidecar_info）。
+  install -Dm755 root/usr/bin/tydora-cli "$pkgdir/usr/bin/tydora-cli"
+
+  # ── 图标 ────────────────────────────────────────────────────────────────
+  install -Dm644 root/usr/share/icons/hicolor/32x32/apps/tydora-desktop.png \
+    "$pkgdir/usr/share/icons/hicolor/32x32/apps/tydora.png"
+  install -Dm644 root/usr/share/icons/hicolor/128x128/apps/tydora-desktop.png \
+    "$pkgdir/usr/share/icons/hicolor/128x128/apps/tydora.png"
+  # 上游 deb 把 128x128@2x 放进了 hicolor/256x256@2（非法目录名），这里归位
+  install -Dm644 root/usr/share/icons/hicolor/256x256@2/apps/tydora-desktop.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/tydora.png"
+
+  # ── 桌面入口（与源码包 tydora 逐字一致）──────────────────────────────────
+  # 上游那份 Tydora.desktop 是 tauri-bundler 生成的：Categories 为空
+  # （desktop-file-validate 会报错）、没有 MimeType（双击 .md 关联不上）。
+  # Exec 用 %F 而不是 %U：应用按**文件系统路径**过滤参数
+  # （src/lib.rs::filter_markdown_paths），%U 传的是 file:// URI。
+  install -d "$pkgdir/usr/share/applications"
+  cat <<'EOF' > "$pkgdir/usr/share/applications/tydora.desktop"
+[Desktop Entry]
+Type=Application
+Name=Tydora
+GenericName=Markdown Editor
+GenericName[zh_CN]=Markdown 编辑器
+Comment=A modern Markdown editor built with Tauri
+Comment[zh_CN]=基于 Tauri 的现代化 Markdown 编辑器
+Exec=tydora %F
+Icon=tydora
+Terminal=false
+Categories=Office;TextEditor;
+Keywords=markdown;md;mdx;notes;wiki;obsidian;editor;
+MimeType=text/markdown;
+StartupWMClass=tydora
+EOF
+}

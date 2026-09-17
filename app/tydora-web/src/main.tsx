@@ -15,9 +15,11 @@ bootStamp("i18n_imported_init_done");
 import "./themes.css";
 import "./global.css";
 import { applyMenuDensityFromStorage } from "./utils/menuDensity";
+import { setupUiScale } from "./utils/uiScale";
 
-// 尽早应用菜单密度，保证各独立窗口（设置/白板/图谱等）启动即生效
+// 尽早应用菜单密度与界面缩放，保证各独立窗口（设置/白板/图谱等）启动即生效
 applyMenuDensityFromStorage();
+setupUiScale();
 window.addEventListener("storage", (e) => {
   if (e.key === "zmd-general-settings") applyMenuDensityFromStorage();
 });
@@ -29,6 +31,10 @@ if (
     navigator.userAgent.includes("Mac OS"))
 ) {
   document.documentElement.classList.add("platform-macos");
+} else if (typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add("platform-windows");
+} else if (typeof navigator !== "undefined" && /Linux/i.test(navigator.userAgent)) {
+  document.documentElement.classList.add("platform-linux");
 }
 
 // 开始接收 Rust boot-timing 事件（异步：不阻塞当前模块解析）

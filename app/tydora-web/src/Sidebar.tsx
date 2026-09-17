@@ -19,6 +19,7 @@ import { relativePath as computeRelativePath } from "./services/ImageManager";
 import { BookmarksPanel } from "./Bookmarks";
 import { TagPanel, parseTagSearchQuery, resolveTagFileSet } from "./tags";
 import { type SidebarTab } from "./Settings";
+import { FileTreeIcon } from "./SidebarFileIcons";
 import "./Sidebar.css";
 
 // 大纲标签页顶部的本地图谱：d3 依赖较重，动态加载避免拖慢首屏
@@ -156,6 +157,8 @@ interface SidebarProps {
   onManageVaults?: () => void;
   /** 打开"设置"模态弹框 */
   onOpenSettings?: () => void;
+  /** 是否显示文件类型图标（通用设置） */
+  showFileIcons?: boolean;
 }
 
 interface ContextMenuItem {
@@ -213,6 +216,21 @@ async function loadDirectory(dirPath: string): Promise<TreeNode[]> {
 
 function pathSep(): string {
   return navigator.platform?.toLowerCase().includes("win") ? "\\" : "/";
+}
+
+// ── 介绍仓库（welcome-vault）：文档按界面语言过滤显示 ────────────────
+
+import { isWelcomeVaultPath, welcomeVaultVisibleDocs } from "./services/welcomeVault";
+
+/** 介绍仓库内按当前语言过滤文件节点：目录保留，文件只保留当前语言的文档。
+ *  文件顺序强制按文档清单排列（欢迎/Welcome 恒在最上），不受文件树排序设置影响。 */
+function filterWelcomeVaultNodes(nodes: TreeNode[], language: string): TreeNode[] {
+  const visible = welcomeVaultVisibleDocs(language);
+  const dirs = nodes.filter((n) => n.isDirectory);
+  const files = nodes
+    .filter((n) => !n.isDirectory && visible.includes(n.name))
+    .sort((a, b) => visible.indexOf(a.name) - visible.indexOf(b.name));
+  return [...dirs, ...files];
 }
 
 function joinPath(parent: string, child: string): string {
@@ -1349,6 +1367,7 @@ function TreeNodeComp({
   lastClickedPathRef,
   onToggleExpand,
   onMoveTo,
+  showFileIcons,
 }: {
   node: TreeNode;
   depth: number;
@@ -1372,6 +1391,7 @@ function TreeNodeComp({
   lastClickedPathRef: React.MutableRefObject<string | null>;
   onToggleExpand: (path: string, expanded: boolean) => void;
   onMoveTo: (path: string, isDirectory: boolean) => void;
+  showFileIcons: boolean;
 }) {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -1614,6 +1634,9 @@ function TreeNodeComp({
         ) : (
           <span className="tree-icon-spacer" />
         )}
+        {showFileIcons && (
+          <FileTreeIcon name={node.name} isDirectory={node.isDirectory} expanded={!!node.expanded} />
+        )}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -1665,6 +1688,7 @@ function TreeNodeComp({
               lastClickedPathRef={lastClickedPathRef}
               onToggleExpand={onToggleExpand}
               onMoveTo={onMoveTo}
+              showFileIcons={showFileIcons}
             />
           ))}
         </div>
@@ -1708,6 +1732,7 @@ function FileTree({
   onScrollToTop,
   hidden,
   onBookmark,
+  showFileIcons,
 }: {
   rootPath: string;
   activePath: string | null;
@@ -1719,8 +1744,11 @@ function FileTree({
   onScrollToTop?: () => void;
   hidden?: boolean;
   onBookmark: (filePath: string, isDirectory: boolean) => void;
+  showFileIcons: boolean;
 }) {
   const vaultPath = rootPath;
+  // 订阅语言变化：介绍仓库的文档过滤依赖 i18n.language，切换语言时触发重载
+  useTranslation();
   const [rootNodes, setRootNodes] = useState<TreeNode[]>([]);
   const [, forceUpdate] = useState(0);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -1838,7 +1866,11 @@ function FileTree({
     const gen = ++loadGenRef.current;
     bootStart("sidebar_load_root");
     bootStamp("sidebar_load_dir_start");
-    const nodes = await loadDirectory(rootPath);
+    let nodes = await loadDirectory(rootPath);
+    // 介绍仓库：只显示当前界面语言对应的文档
+    if (isWelcomeVaultPath(vaultPath)) {
+      nodes = filterWelcomeVaultNodes(nodes, i18n.language);
+    }
     bootStamp("sidebar_load_dir_done");
     const expanded = new Set(loadExpandedPaths(vaultPath));
     for (const p of collectExpanded(rootNodesRef.current)) expanded.add(p);
@@ -1867,7 +1899,8 @@ function FileTree({
     setRootNodes(nodes);
     bootStamp("sidebar_setRootNodes_called");
     bootEnd("sidebar_load_root");
-  }, [rootPath, vaultPath, collectExpanded, restoreExpanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootPath, vaultPath, collectExpanded, restoreExpanded, i18n.language]);
 
   const handleRefresh = useCallback(() => {
     forceUpdate((n) => n + 1);
@@ -1883,11 +1916,16 @@ function FileTree({
         paths.add(expandPath);
       }
     }
-    const nodes = await loadDirectory(rootPath);
+    let nodes = await loadDirectory(rootPath);
+    // 介绍仓库：只显示当前界面语言对应的文档
+    if (isWelcomeVaultPath(rootPath)) {
+      nodes = filterWelcomeVaultNodes(nodes, i18n.language);
+    }
     await restoreExpanded(nodes, paths);
     setRootNodes(nodes);
     handleRefresh();
-  }, [rootPath, collectExpanded, restoreExpanded, handleRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootPath, collectExpanded, restoreExpanded, handleRefresh, i18n.language]);
 
   const handleSortChange = useCallback((settings: FileSortSettings) => {
     currentSortSettings = settings;
@@ -3059,6 +3097,7 @@ function FileTree({
             lastClickedPathRef={lastClickedPathRef}
             onToggleExpand={handleToggleExpand}
             onMoveTo={handleMoveTo}
+            showFileIcons={showFileIcons}
           />
         ))}
 
@@ -3661,6 +3700,7 @@ export default function Sidebar({
   onManageVaults,
   /** 打开"设置"（主窗口内的模态弹框） */
   onOpenSettings,
+  showFileIcons = true,
 }: SidebarProps) {
   bootStart("sidebar_component_render");
   bootStamp("sidebar_component_entered");
@@ -4097,6 +4137,7 @@ export default function Sidebar({
                   onOpenInNewPanel={onOpenInNewPanel}
                   canOpenInNewPanel={canOpenInNewPanel}
                   onBookmark={onBookmark}
+                  showFileIcons={showFileIcons}
                 />
               ) : (
                 <div className="sidebar-tree">

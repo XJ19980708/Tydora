@@ -1,0 +1,142 @@
+# Maintainer: zuorn <zuorn@qq.com>
+#
+# ─────────────────────────────────────────────────────────────────────────────
+#  Tydora —— 源码构建包
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  与上游区别：本包【不用】`tauri build`，而是直接用 cargo 编译，然后按 Arch 的
+#  规矩手工安装文件。原因：
+#    * 不需要 NSIS / deb / AppImage 这些 bundle（Arch 有自己的包管理）；
+#    * `tauri build` 即使加 `--no-bundle`，也会因为 tauri.conf.json 里
+#      bundle.createUpdaterArtifacts = true 而要求 TAURI_SIGNING_PRIVATE_KEY；
+#    * tauri CLI 的 beforeBuildCommand 依赖调用时的 cwd，直接用 cargo 更可控。
+#
+#  构建链路：
+#    1. npm ci                       前端依赖（根 postinstall 自动跑 patch-package）
+#    2. scripts/patch-tiptap-focus.mjs
+#                                    修补 @tiptap/extensions 在 React 19 渲染时序下
+#                                    `this.editor is undefined` 的崩溃。上游没把它接进
+#                                    postinstall（见 CLAUDE.md「已知问题」第 1 条），
+#                                    脚本自身幂等、找不到目标只打印警告，不会失败。
+#    3. npm run build                tsc + vite → .build/web-dist
+#                                    tauri.conf.json 的 frontendDist 指向这里，
+#                                    Rust 侧 generate_context! 会把前端内嵌进二进制，
+#                                    所以运行时不需要任何资源目录。
+#    4. npm run build:cli            cargo 构建 tydora-cli，并按 Tauri externalBin
+#                                    约定落到 app/tydora-desktop/binaries/
+#                                    tydora-cli-<triple>。**必须在第 5 步之前**：
+#                                    tauri-build 在编译桌面端时会 copy_binaries()
+#                                    这个 sidecar，文件不存在会直接构建失败。
+#    5. cargo build -p tydora-desktop 桌面端主程序
+#
+#  已知的上游副作用：package.json 通过 `file:./vendor/markdown-publish` 挂了
+#  markdown-publish，而它的 dependencies 是一整套 Angular 构建链。前端源码并不
+#  import 它（运行时靠 PATH 上的全局 markdown-publish），但 npm ci 会连带装上，
+#  导致这一步体积大、耗时几分钟。不能删这个依赖：删了 package.json 与
+#  package-lock.json 就不一致，npm ci 会直接报错。
+# ─────────────────────────────────────────────────────────────────────────────
+
+pkgname=tydora
+pkgver=0.2.9
+pkgrel=1
+pkgdesc="A modern Markdown editor built with Tauri: WYSIWYG and source modes, wiki-links, graph, canvas, terminal"
+arch=('x86_64' 'aarch64')
+url="https://github.com/zuorn/Tydora"
+# 以仓库 LICENSE 与两份 README 的声明为准（Apache-2.0）。
+# 注意：app/Cargo.toml 的 [workspace.package] license 写的是 "MIT"，与 LICENSE
+# 不一致，属于上游元数据笔误，不影响本包。
+license=('Apache')
+depends=(
+  'gtk3'            # libgtk-3.so.0 / libgdk-3.so.0
+  'libsoup3'        # libsoup-3.0.so.0
+  'openssl'         # libssl.so.3 / libcrypto.so.3（reqwest 走 native-tls）
+  'webkit2gtk-4.1'  # libwebkit2gtk-4.1.so.0 / libjavascriptcoregtk-4.1.so.0
+  'xdg-utils'       # 打开外部链接 / 在文件管理器中定位文件（内部调 xdg-open）
+)
+makedepends=('cargo' 'nodejs' 'rust')
+optdepends=('nodejs: publish features (needs the markdown-publish CLI)')
+conflicts=('tydora-bin')
+# !debug：workspace 的 release profile 已经 strip = "symbols"，产物没有可分离的
+#         调试信息，打 -debug 包只会得到一份重复的巨大二进制。
+# !lto  ：避免 makepkg 往 CFLAGS 里塞 -flto 影响 Rust 的 C 依赖（Rust 自己的
+#         lto = "thin" 由 workspace profile 控制，不受这里影响）。
+options=('!debug' '!lto')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/zuorn/Tydora/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('fb605cdb0a91416d1eacc6d67bc591ed5a2e1e073e3c0b6d409c7610e9b6966d')
+
+# GitHub 的 archive tarball 顶层目录用的是【仓库名】（大写 T 的 Tydora），
+# 不是 pkgname，所以不能直接 cd "$pkgname-$pkgver"。
+_reponame="Tydora-$pkgver"
+
+build() {
+  cd "$_reponame"
+
+  npm ci --no-audit --no-fund
+  node scripts/patch-tiptap-focus.mjs
+  npm run build
+  npm run build:cli
+
+  # 必须在 app/ 下执行：app/.cargo/config.toml 把 target-dir 指到仓库根的
+  # target/，而 cargo 只从【当前工作目录】向上查找 .cargo 配置——从仓库根跑
+  # 会落到 app/target，package() 里的路径就对不上了。
+  ( cd app && cargo build --release --locked --bin tydora-desktop )
+}
+
+check() {
+  cd "$_reponame"
+
+  # CLI 冒烟测试：--version 在 clap 的参数解析阶段就被处理，不读写用户数据
+  ./target/release/tydora-cli --version
+
+  # sidecar 与主程序都必须是真的原生 ELF（Tauri 靠 externalBin 与主程序同目录）
+  file --brief target/release/tydora-desktop | grep -q '^ELF'
+  file --brief target/release/tydora-cli | grep -q '^ELF'
+}
+
+package() {
+  cd "$_reponame"
+
+  # ── 主程序 ───────────────────────────────────────────────────────────────
+  # Tauri 不会把 cargo 的 bin 名改成 productName，产物就叫 tydora-desktop；
+  # 这里按 Linux 惯例安装成 tydora。
+  # ⚠️ 可执行文件名必须和 .desktop 里的 StartupWMClass 一致：tauri.conf.json
+  #    没开 app.enable_gtk_app_id，GTK 会用 argv[0] 作为 WM_CLASS，名字对不上
+  #    GNOME/KDE 会显示成两个图标（一个是孤立的窗口图标）。
+  install -Dm755 target/release/tydora-desktop "$pkgdir/usr/bin/tydora"
+
+  # ── CLI sidecar ─────────────────────────────────────────────────────────
+  # 必须与主程序同目录：桌面端「设置 → CLI 与 MCP」是用
+  # current_exe().parent()/tydora-cli 探测的（src/lib.rs::cli_sidecar_info）。
+  install -Dm755 target/release/tydora-cli "$pkgdir/usr/bin/tydora-cli"
+
+  # ── 图标 ────────────────────────────────────────────────────────────────
+  install -Dm644 app/tydora-desktop/icons/32x32.png      "$pkgdir/usr/share/icons/hicolor/32x32/apps/tydora.png"
+  install -Dm644 app/tydora-desktop/icons/64x64.png      "$pkgdir/usr/share/icons/hicolor/64x64/apps/tydora.png"
+  install -Dm644 app/tydora-desktop/icons/128x128.png    "$pkgdir/usr/share/icons/hicolor/128x128/apps/tydora.png"
+  install -Dm644 app/tydora-desktop/icons/128x128@2x.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/tydora.png"
+  install -Dm644 app/tydora-desktop/icons/icon.png       "$pkgdir/usr/share/icons/hicolor/512x512/apps/tydora.png"
+
+  # ── 桌面入口 ─────────────────────────────────────────────────────────────
+  # 不直接复用上游 deb 里的 Tydora.desktop（tauri-bundler 生成的那份
+  # Categories 是空的，desktop-file-validate 会报错，而且没有 MimeType，
+  # 双击 .md 关联不上），这里自己写一份。
+  # Exec 用 %F 而不是 %U：应用是按**文件系统路径**过滤参数的
+  # （src/lib.rs::filter_markdown_paths），%U 会传 file:// URI。
+  install -d "$pkgdir/usr/share/applications"
+  cat <<'EOF' > "$pkgdir/usr/share/applications/tydora.desktop"
+[Desktop Entry]
+Type=Application
+Name=Tydora
+GenericName=Markdown Editor
+GenericName[zh_CN]=Markdown 编辑器
+Comment=A modern Markdown editor built with Tauri
+Comment[zh_CN]=基于 Tauri 的现代化 Markdown 编辑器
+Exec=tydora %F
+Icon=tydora
+Terminal=false
+Categories=Office;TextEditor;
+Keywords=markdown;md;mdx;notes;wiki;obsidian;editor;
+MimeType=text/markdown;
+StartupWMClass=tydora
+EOF
+}

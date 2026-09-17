@@ -4,6 +4,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { NodeView, ViewMutationRecord } from "@tiptap/pm/view";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { common, createLowlight } from "lowlight";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 
 // ── HTML 转义 ──
 function escapeHtml(text: string): string {
@@ -219,6 +220,8 @@ export const Frontmatter = Node.create({
         parse: {
           // 解析：用 core.ruler 在 block 规则之前替换源文本中的 frontmatter
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "frontmatter")) return;
             markdownit.core.ruler.before(
               "block",
               "frontmatter",

@@ -5,9 +5,10 @@ import { ask, open } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { useTheme, type ThemeName, type ThemePair } from "./themes";
 import { loadImageSettings, saveImageSettings, type ImageSettings, type StorageMode, type FilenameFormat } from "./services";
-import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, type UpdateInfo } from "./services";
+import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, getSystemPackageInfo, type UpdateInfo, type SystemPackageInfo } from "./services";
 import { PublishSettings } from "./publish";
 import CliMcpSettings from "./cli/CliMcpSettings";
+import { findSettingsSearchItem } from "./settings/settingsSearchIndex";
 import { loadCanvasSettings, saveCanvasSettings, type CanvasSettings } from "./Canvas/canvas-settings";
 import { TerminalSettingsContent } from "./Terminal/TerminalSettingsContent";
 import { VimSettingsPanel } from "./vim/settings/VimSettingsPanel";
@@ -42,6 +43,7 @@ import {
   normalizeMenuDensity,
   type MenuDensity,
 } from "./utils/menuDensity";
+import { applyUiScaleFromSettings } from "./utils/uiScale";
 import shortcutsConfig from "./config/shortcuts.json";
 import { formatShortcutKey, matchShortcut, loadShortcuts, getShortcutKeys, resolveSavedKeys } from "./Editor/shortcuts";
 import { isAnalyticsEnabled, setAnalyticsEnabled, track, trackPageview, ANALYTICS_EVENTS } from "./analytics";
@@ -132,8 +134,12 @@ interface GeneralSettings {
   codeBlockToolbarStyle: CodeBlockToolbarStyle;
   /** 菜单项高度密度 */
   menuDensity: MenuDensity;
+  /** 界面缩放："auto"（按屏幕分辨率自适应）或固定比例（0.75~1.5） */
+  uiScale: "auto" | number;
   /** 侧栏 tab 在左/右侧栏的分配 */
   sidebarTabPlacement: SidebarTabPlacement;
+  /** 文件树是否显示文件类型图标 */
+  showFileIcons: boolean;
 }
 
 interface ShortcutItem {
@@ -162,7 +168,8 @@ export const DEFAULT_GENERAL: GeneralSettings = {
   irLineNumbers: true,
   expandOutlineOnOpen: true,
   codeBlockToolbarStyle: "minimal",
-  menuDensity: "compact",
+  menuDensity: "normal",
+  uiScale: "auto",
   sidebarTabPlacement: {
     files: "left",
     search: "left",
@@ -170,6 +177,7 @@ export const DEFAULT_GENERAL: GeneralSettings = {
     bookmarks: "left",
     tags: "right",
   },
+  showFileIcons: true,
 };
 
 interface MindmapSettings {
@@ -475,6 +483,30 @@ function GeneralSettingsContent({
       <div className="canvas-settings-card">
         <div className="canvas-settings-row">
           <div className="canvas-settings-row-label">
+            <span className="canvas-settings-row-title">{t("settings.appearance.uiScale")}</span>
+            <span className="canvas-settings-row-desc">{t("settings.appearance.uiScaleDesc")}</span>
+          </div>
+          <SettingsSelect
+            value={String(settings.uiScale ?? "auto")}
+            onChange={(v) =>
+              onChange({
+                ...settings,
+                uiScale: v === "auto" ? "auto" : Number(v),
+              })
+            }
+            options={[
+              { value: "auto", label: t("settings.appearance.uiScaleAuto") },
+              { value: "0.75", label: "75%" },
+              { value: "0.85", label: "85%" },
+              { value: "1", label: "100%" },
+              { value: "1.1", label: "110%" },
+              { value: "1.25", label: "125%" },
+              { value: "1.5", label: "150%" },
+            ]}
+          />
+        </div>
+        <div className="canvas-settings-row">
+          <div className="canvas-settings-row-label">
             <span className="canvas-settings-row-title">{t("settings.appearance.menuDensity")}</span>
             <span className="canvas-settings-row-desc">{t("settings.appearance.menuDensityDesc")}</span>
           </div>
@@ -554,6 +586,23 @@ function GeneralSettingsContent({
               type="checkbox"
               checked={settings.expandOutlineOnOpen}
               onChange={(e) => onChange({ ...settings, expandOutlineOnOpen: e.target.checked })}
+            />
+            <span className="settings-switch-slider" />
+          </label>
+        </div>
+      </div>
+
+      <div className="canvas-settings-card">
+        <div className="canvas-settings-row">
+          <div className="canvas-settings-row-label">
+            <span className="canvas-settings-row-title">{t("settings.appearance.showFileIcons")}</span>
+            <span className="canvas-settings-row-desc">{t("settings.appearance.showFileIconsDesc")}</span>
+          </div>
+          <label className="settings-switch">
+            <input
+              type="checkbox"
+              checked={settings.showFileIcons}
+              onChange={(e) => onChange({ ...settings, showFileIcons: e.target.checked })}
             />
             <span className="settings-switch-slider" />
           </label>
@@ -1018,7 +1067,7 @@ function ThemeSettingsContent() {
     { value: "white", label: t("settings.theme.white"), colors: ["#ffffff", "#2563eb", "#1e293b", "#d1d9e6"] },
     { value: "mint", label: "Mint", colors: ["#ffffff", "#4eb289", "#1e293b", "#a5cfc0"] },
     { value: "mint-dark", label: "Mint Dark", colors: ["#272729", "#4eb289", "#cccccc", "#39393a"] },
-    { value: "modern-dark", label: "Modern Dark", colors: ["#1b1d24", "#74a7fe", "#cccccc", "#111217"] },
+    { value: "modern-dark", label: "Modern Dark", colors: ["#1e222d", "#74a7fe", "#d7dae2", "#3a4152"] },
     { value: "claude-code", label: "Claude Code", colors: ["#faf8f5", "#c47a2a", "#1a1a1a", "#ddd6cc"] },
     { value: "purple", label: "Purple", colors: ["#faf5ff", "#7c3aed", "#1e1b2e", "#ddd6ee"] },
     { value: "hermes", label: "Hermes", colors: ["#f0f1ff", "#0000f2", "#1a1a4e", "rgba(0,0,242,0.12)"] },
@@ -2661,11 +2710,14 @@ function AboutSettingsContent() {
   const [storeVersion, setStoreVersion] = useState(false);
   const [portableVersion, setPortableVersion] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateResult, setUpdateResult] = useState<{ available: boolean; info?: UpdateInfo } | null>(null);
+  const [updateResult, setUpdateResult] = useState<{ available: boolean; info?: UpdateInfo; error?: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
   const [analyticsEnabled, setAnalyticsState] = useState<boolean>(() => isAnalyticsEnabled());
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
+  const [systemPkg, setSystemPkg] = useState<SystemPackageInfo | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<string>("get_app_version").then(setVersion).catch(() => setVersion(""));
@@ -2673,18 +2725,32 @@ function AboutSettingsContent() {
     isStoreVersion().then(setStoreVersion).catch(() => setStoreVersion(false));
     // 是否为便携版：便携版走 GitHub 便携 zip 通道更新
     isPortableVersion().then(setPortableVersion).catch(() => setPortableVersion(false));
+    // 是否由系统包管理器安装：这类安装只能提示用户用包管理器更新
+    getSystemPackageInfo().then(setSystemPkg).catch(() => setSystemPkg(null));
   }, []);
 
   const handleCheckUpdate = useCallback(async () => {
     setCheckingUpdate(true);
     setUpdateResult(null);
+    setUpdateError(null);
     try {
       const info = await checkForUpdate();
       setUpdateResult(info ? { available: true, info } : { available: false });
-    } catch {
-      setUpdateResult({ available: false });
+    } catch (e) {
+      // 检查失败也要让用户看到原因，不能静默显示「已是最新版本」
+      setUpdateResult({ available: false, error: e instanceof Error ? e.message : String(e) });
     }
     setCheckingUpdate(false);
+  }, []);
+
+  const handleCopyCommand = useCallback(async (command: string) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopiedCommand(true);
+      setTimeout(() => setCopiedCommand(false), 2000);
+    } catch {
+      setUpdateError(command);
+    }
   }, []);
 
   const handleDownload = useCallback(async () => {
@@ -2695,6 +2761,7 @@ function AboutSettingsContent() {
       if (!ok) return;
     }
     setDownloading(true);
+    setUpdateError(null);
     setDownloadProgress({ downloaded: 0, total: null });
     try {
       await downloadAndInstall((downloaded, total) => {
@@ -2711,9 +2778,14 @@ function AboutSettingsContent() {
       }
     } catch (e) {
       console.error(`${t("settings.about.updateFailed")}`, e);
+      setUpdateError(e instanceof Error ? e.message : String(e));
       setDownloading(false);
     }
   }, [updateResult, t, storeVersion, portableVersion]);
+
+  // 系统包管理器安装时，更新动作是「复制命令」而不是下载安装包
+  const systemUpdateCommand =
+    updateResult?.info?.installMethod === "system" ? updateResult.info.updateCommand ?? null : null;
 
   return (
     <div className="settings-section">
@@ -2755,6 +2827,15 @@ function AboutSettingsContent() {
         </div>
       )}
 
+      {systemPkg && (
+        <div className="settings-item">
+          <label className="settings-item-label">{t("settings.about.installSource")}</label>
+          <span className="settings-about-value">
+            {t("settings.about.systemPackageHint", { manager: systemPkg.packageManager })}
+          </span>
+        </div>
+      )}
+
       <div className="settings-item-vertical">
         <label className="settings-label">{t("settings.appearance.analytics")}</label>
         <div className="settings-item-inline">
@@ -2780,6 +2861,16 @@ function AboutSettingsContent() {
           <span className="settings-about-value">
             {t("settings.about.downloading")}{downloadProgress.total ? ` ${Math.round(downloadProgress.downloaded / downloadProgress.total * 100)}%` : ""}
           </span>
+        ) : systemUpdateCommand ? (
+          <div className="settings-update-command">
+            <span className="settings-update-command-hint">{t("settings.about.systemUpdateHint")}</span>
+            <div className="settings-update-command-row">
+              <code className="settings-update-command-code">{systemUpdateCommand}</code>
+              <button className="settings-button" onClick={() => handleCopyCommand(systemUpdateCommand)}>
+                {copiedCommand ? t("settings.about.copied") : t("settings.about.copyCommand")}
+              </button>
+            </div>
+          </div>
         ) : updateResult?.available && updateResult.info ? (
           <button className="settings-button" onClick={handleDownload}>
             {t("settings.about.updateTo", { version: updateResult.info.version })}
@@ -2790,10 +2881,22 @@ function AboutSettingsContent() {
             onClick={handleCheckUpdate}
             disabled={checkingUpdate}
           >
-            {checkingUpdate ? t("settings.about.checking") : updateResult && !updateResult.available ? t("settings.about.alreadyLatest") : t("settings.about.checkUpdate")}
+            {checkingUpdate
+              ? t("settings.about.checking")
+              : updateResult && !updateResult.available && !updateResult.error
+                ? t("settings.about.alreadyLatest")
+                : t("settings.about.checkUpdate")}
           </button>
         )}
       </div>
+
+      {(updateError || updateResult?.error) && (
+        <div className="settings-item">
+          <span className="settings-update-error">
+            {t("settings.about.updateFailed")} {updateError || updateResult?.error}
+          </span>
+        </div>
+      )}
 
       <div className="settings-item">
         <label className="settings-item-label">{t("settings.about.github")}</label>
@@ -2829,6 +2932,7 @@ function AboutSettingsContent() {
 // ── Main Settings Component ─────────────────────────────────────────
 
 const SETTINGS_NAV_WIDTH_KEY = "zmd-settings-nav-width";
+const SETTINGS_FOCUS_ITEM_KEY = "zmd-settings-focus-item";
 const SETTINGS_NAV_WIDTH_DEFAULT = 260;
 const SETTINGS_NAV_WIDTH_MIN = 180;
 const SETTINGS_NAV_WIDTH_MAX = 420;
@@ -2860,6 +2964,48 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     localStorage.setItem(SETTINGS_NAV_WIDTH_KEY, String(navWidth));
   }, [navWidth]);
+
+  // 命令面板「设置项级」跳转定位：App 侧把目标设置项 id 写入 localStorage，
+  // 本组件挂载后（对应标签页已渲染）按行标题文本匹配 DOM 行，
+  // 滚动到可见区域 + 获得键盘焦点 + 高亮标记（数秒后自动消退）。
+  useEffect(() => {
+    let focusId: string | null = null;
+    try {
+      focusId = localStorage.getItem(SETTINGS_FOCUS_ITEM_KEY);
+      if (focusId) localStorage.removeItem(SETTINGS_FOCUS_ITEM_KEY);
+    } catch { /* ignore */ }
+    if (!focusId) return;
+    const item = findSettingsSearchItem(focusId);
+    if (!item) return;
+    const targetLabel = t(item.labelKey).trim();
+    // 等待标签页内容渲染完成（lazy 组件 + i18n）
+    const timer = window.setTimeout(() => {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(".canvas-settings-row"));
+      let target = rows.find(
+        (r) => r.querySelector(".canvas-settings-row-title")?.textContent?.trim() === targetLabel
+      );
+      // 回退：分组标题（如「侧栏设置」是 section 标题而非行标题）→ 高亮其所在卡片
+      if (!target) {
+        const section = Array.from(document.querySelectorAll<HTMLElement>(".settings-section-title"))
+          .find((s) => s.textContent?.trim() === targetLabel);
+        if (section) {
+          target = (section.closest(".canvas-settings-card") as HTMLElement | null) ?? section;
+        }
+      }
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.setAttribute("tabindex", "-1");
+      target.classList.remove("settings-item-highlight");
+      // 强制 reflow，保证重复定位同一条目时动画能重新播放
+      void target.offsetWidth;
+      target.classList.add("settings-item-highlight");
+      target.focus({ preventScroll: true });
+      window.setTimeout(() => target?.classList.remove("settings-item-highlight"), 3200);
+    }, 180);
+    return () => window.clearTimeout(timer);
+    // 仅挂载时执行一次（App 每次跳转都会通过 settingsKey 重挂载本组件）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNavResizeMouseDown = useCallback((e: ReactMouseEvent) => {
     e.preventDefault();
@@ -2920,17 +3066,22 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
             ? Math.min(2.4, Math.max(1.2, Math.round(parsed.codeLineHeight * 10) / 10))
             : DEFAULT_GENERAL.codeLineHeight,
         sidebarTabPlacement: normalizeSidebarTabPlacement(parsed.sidebarTabPlacement),
+        showFileIcons:
+          typeof parsed.showFileIcons === "boolean"
+            ? parsed.showFileIcons
+            : DEFAULT_GENERAL.showFileIcons,
       };
     } catch {
       return DEFAULT_GENERAL;
     }
   });
 
-  // 保存通用设置到 localStorage，并立即应用菜单密度 / 间距相关 CSS 变量
+  // 保存通用设置到 localStorage，并立即应用菜单密度 / 间距 / 界面缩放
   useEffect(() => {
     localStorage.setItem(GENERAL_SETTINGS_KEY, JSON.stringify(generalSettings));
     applyMenuDensity(generalSettings.menuDensity);
     applyEditorSpacingFromSettings(generalSettings);
+    applyUiScaleFromSettings(generalSettings);
   }, [generalSettings]);
 
   // 思维导图设置状态

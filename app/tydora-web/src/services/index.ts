@@ -1,5 +1,5 @@
-export { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion } from "./Updater";
-export type { UpdateInfo } from "./Updater";
+export { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, getSystemPackageInfo } from "./Updater";
+export type { UpdateInfo, SystemPackageInfo } from "./Updater";
 export {
   loadImageSettings,
   saveImageSettings,

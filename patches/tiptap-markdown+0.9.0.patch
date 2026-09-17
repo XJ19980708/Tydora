@@ -1,3 +1,43 @@
+diff --git a/node_modules/tiptap-markdown/dist/tiptap-markdown.es.js b/node_modules/tiptap-markdown/dist/tiptap-markdown.es.js
+index da5639e..0e34e29 100644
+--- a/node_modules/tiptap-markdown/dist/tiptap-markdown.es.js
++++ b/node_modules/tiptap-markdown/dist/tiptap-markdown.es.js
+@@ -528,7 +528,14 @@ const Table$1 = Table.extend({
+             if (!i) {
+               const delimiterRow = Array.from({
+                 length: row.childCount
+-              }).map(() => "---").join(" | ");
++              }, (_c, k) => {
++                const cell = row.child(k);
++                const align = cell && cell.attrs && cell.attrs.align;
++                if (align === "center") return ":---:";
++                if (align === "right") return "---:";
++                if (align === "left") return ":---";
++                return "---";
++              }).join(" | ");
+               state.write(`| ${delimiterRow} |`);
+               state.ensureNewLine();
+             }
+diff --git a/node_modules/tiptap-markdown/dist/tiptap-markdown.umd.js b/node_modules/tiptap-markdown/dist/tiptap-markdown.umd.js
+index b682117..1d477f7 100644
+--- a/node_modules/tiptap-markdown/dist/tiptap-markdown.umd.js
++++ b/node_modules/tiptap-markdown/dist/tiptap-markdown.umd.js
+@@ -526,7 +526,14 @@ ${element.innerHTML}
+               if (!i) {
+                 const delimiterRow = Array.from({
+                   length: row.childCount
+-                }).map(() => "---").join(" | ");
++                }, (_c, k) => {
++                  const cell = row.child(k);
++                  const align = cell && cell.attrs && cell.attrs.align;
++                  if (align === "center") return ":---:";
++                  if (align === "right") return "---:";
++                  if (align === "left") return ":---";
++                  return "---";
++                }).join(" | ");
+                 state2.write(`| ${delimiterRow} |`);
+                 state2.ensureNewLine();
+               }
 diff --git a/node_modules/tiptap-markdown/src/parse/MarkdownParser.js b/node_modules/tiptap-markdown/src/parse/MarkdownParser.js
 index 514b590..3899a70 100644
 --- a/node_modules/tiptap-markdown/src/parse/MarkdownParser.js

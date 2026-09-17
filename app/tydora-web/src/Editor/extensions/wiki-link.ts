@@ -1,5 +1,6 @@
 import { Node, mergeAttributes, InputRule } from "@tiptap/core";
 import { applyOutsideCodeSpans } from "../../wikilink/codeSpanGuard";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 
 /** HTML 属性值转义，防止 XSS */
 function encodeNote(s: string): string {
@@ -341,6 +342,8 @@ export const WikiLink = Node.create({
         },
         parse: {
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "wiki_link")) return;
             // 在 markdown-it 解析 inline 内容之前：
             // 1. 将 ![[图片]] 替换为 <img>（Obsidian 嵌入图片语法）
             // 2. 将 [[note]] 替换为 HTML <a> 标签

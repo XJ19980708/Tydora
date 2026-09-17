@@ -28,12 +28,14 @@ const VimSidebar = FileTreeVim(Sidebar);
 import { FilePreview } from "./components";
 import { QuickOpen } from "./components";
 import { CommandPalette } from "./components";
+import { SETTINGS_SEARCH_ITEMS } from "./settings/settingsSearchIndex";
 import { useTheme } from "./themes";
 import { ConfirmDialog } from "./components";
 import { buildExportArtifact, EXPORT_FORMATS, type ExportFormat, type BuiltArtifact } from "./export";
 import { ExportPreviewDialog } from "./components/ExportPreviewDialog";
 import { XhsPreviewPanel } from "./export/xiaohongshu";
 import { emit, listen } from "@tauri-apps/api/event";
+import i18n from "./i18n";
 import { loadImageSettings, IMAGE_SETTINGS_KEY, type ImageSettings } from "./services";
 import { loadEditorSettings, type EditorSettings, EDITOR_SETTINGS_KEY, SHORTCUTS_KEY, GRAPH_SETTINGS_KEY, DEFAULT_GRAPH, type SidebarTab, type SidebarSide, type SidebarTabPlacement, sidebarTabsForSide, DEFAULT_GENERAL, TOGGLE_SIDEBAR_EVENT, TOGGLE_RIGHT_SIDEBAR_EVENT } from "./Settings";
 import { applyFontSettings } from "./utils/systemFonts";
@@ -49,6 +51,7 @@ import PublishPanel from "./publish/PublishPanel";
 import PublishConfigDialog from "./publish/PublishConfigDialog";
 import { CONFIG_FILE } from "./publish/PublishService";
 import { buildIndexesTogether, persistIndexesToStorage, restoreIndexesFromCache } from "./services/index-builder";
+import { setWelcomeVaultDir } from "./services/welcomeVault";
 
 // 关系图谱 / 白板仅在打开时渲染，按需加载（避免 d3、@xyflow 进入首屏 bundle）
 const GraphView = lazy(() => import("./graph").then((m) => ({ default: m.GraphView })));
@@ -111,6 +114,8 @@ class EditorErrorBoundary extends Component<
 
 const VAULTS_KEY = "zmd-vaults";
 const ACTIVE_VAULT_KEY = "zmd-active-vault";
+/** 首次启动已初始化"介绍仓库"标记（只执行一次，无论成功与否不再重试） */
+const WELCOME_VAULT_INITIALIZED_KEY = "zmd-welcome-vault-initialized";
 const SIDEBAR_WIDTH_KEY = "zmd-sidebar-width";
 const RIGHT_SIDEBAR_OPEN_KEY = "zmd-right-sidebar-open";
 const RIGHT_SIDEBAR_WIDTH_KEY = "zmd-right-sidebar-width";
@@ -464,6 +469,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   const [irLineNumbers, setIrLineNumbers] = useState(() => s.irLineNumbers ?? true);
   // 双击 .md 文件外部打开时，是否展开侧栏并自动切换到大纲视图（默认开启）
   const [expandOutlineOnOpen, setExpandOutlineOnOpen] = useState(() => s.expandOutlineOnOpen ?? true);
+  // 文件树是否显示文件类型图标（通用设置，默认开启）
+  const [showFileIcons, setShowFileIcons] = useState(() => s.showFileIcons ?? true);
   // 传递给 Sidebar 的"切到大纲"触发器（每次自增促使 Sidebar 切 tab）
   const [outlineTrigger, setOutlineTrigger] = useState(0);
   // Ctrl+滚轮调整字号时的右上角提示（停止滚动 1.5s 后自动消失）
@@ -567,6 +574,9 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         }
         if (typeof settings.expandOutlineOnOpen === 'boolean') {
           setExpandOutlineOnOpen(settings.expandOutlineOnOpen);
+        }
+        if (typeof settings.showFileIcons === 'boolean') {
+          setShowFileIcons(settings.showFileIcons);
         }
         document.documentElement.dataset.codeBlockToolbar =
           settings.codeBlockToolbarStyle === "classic" ? "classic" : "minimal";
@@ -951,6 +961,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
+  const [updateCopied, setUpdateCopied] = useState(false);
+  const [updateFailed, setUpdateFailed] = useState(false);
 
   // 文件导航历史（前进/后退）
   const [fileHistory, setFileHistory] = useState<string[]>([]);
@@ -1076,6 +1088,48 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     }
   }, [initialVaultPath, vaults]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 首次启动：物化并自动打开"Tydora 介绍"仓库 ──────────────────────
+  // 仅执行一次（localStorage 标记）；已有仓库的老用户只物化文档文件，不注入仓库。
+  // 文档语言跟随当前界面语言（首次启动时界面语言由操作系统语言自动检测决定，
+  // 见 i18n/detect.ts），用户仍可在设置中手动切换语言。
+  // settled：标记初始化流程结束（成功/失败/无需注入），无仓库自动弹管理仓库的
+  // 逻辑要等它完成，避免"注入进行中"时弹框抢先打开。
+  const [welcomeVaultSettled, setWelcomeVaultSettled] = useState<boolean>(
+    () => !!localStorage.getItem(WELCOME_VAULT_INITIALIZED_KEY),
+  );
+  useEffect(() => {
+    if (localStorage.getItem(WELCOME_VAULT_INITIALIZED_KEY)) return;
+    // 同步置标记：防 StrictMode 双跑与重复注入
+    localStorage.setItem(WELCOME_VAULT_INITIALIZED_KEY, "1");
+    let cancelled = false;
+    const finish = () => setWelcomeVaultSettled(true);
+    (async () => {
+      try {
+        const dir = await invoke<string>("ensure_welcome_vault");
+        if (cancelled) { finish(); return; }
+        setWelcomeVaultDir(dir);
+        // 老用户（已有仓库）不做注入，仅在下次"管理仓库"里可以手动打开该目录
+        if (vaults.length > 0) { finish(); return; }
+        const lang = i18n.language?.startsWith("zh") ? "zh-CN" : "en-US";
+        const vaultName = lang === "zh-CN" ? "Tydora 介绍" : "Tydora Introduction";
+        const newVaults = [...vaults, { name: vaultName, path: dir }];
+        setVaults(newVaults);
+        setActiveVaultIndex(newVaults.length - 1);
+        // 等仓库状态落地后再打开欢迎文档
+        const sep = navigator.platform?.toLowerCase().includes("win") ? "\\" : "/";
+        const entry = lang === "zh-CN" ? "欢迎.md" : "Welcome.md";
+        setTimeout(() => {
+          void openFileRef.current(`${dir}${sep}${entry}`);
+        }, 400);
+      } catch (e) {
+        console.error("初始化介绍仓库失败", e);
+      } finally {
+        finish();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 启动时窗口可见性策略（秒开版）：
   // - 目标：用户点击 exe → 尽可能早看到主窗口（Rust 端 visible=true 已保证创建即显示）
   // - 正常路径（有仓库 / 双击 .md 打开文件）：始终显示主窗口，不做跨窗口跳转
@@ -1118,6 +1172,9 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
     if (!externalLaunchSettled) return;
     if (hasExternalFile) return;
+    // 首次启动的介绍仓库初始化尚未结束：等它完成（注入成功则走步骤 2 的
+    // vaults.length>0 分支；失败才落到这里打开管理仓库）
+    if (!welcomeVaultSettled) return;
 
     // 4) settled=true 且确实没有任何外部文件 → 在主窗口内打开"管理仓库"模态弹框
     //    （管理仓库已由独立窗口改为模态弹框，主窗口保持可见，不再关闭/通知关闭）
@@ -1126,7 +1183,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     setVaultManagerOpen(true);
     bootStamp("visibility_no_vault_after_open_vault_manager");
     bootEnd("visibility_no_vault_path");
-  }, [externalLaunchSettled, hasExternalFile, vaults, initialFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [externalLaunchSettled, hasExternalFile, vaults, initialFilePath, welcomeVaultSettled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 构建链接索引和标签索引（优化版：先缓存恢复 UI → 后台联合构建 → 统一持久化）
   useEffect(() => {
@@ -1174,13 +1231,17 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     return () => window.clearTimeout(handle);
   }, [activeVaultIndex, vaults]);
 
-  // 文件监听：外部文件变化时自动更新索引，并刷新文件树（结构性变化）
+  // 文件监听：外部文件变化时自动更新索引，并刷新文件树（结构性变化）。
+  // 内容变化回调经 ref 转发：reloadExternallyChangedBuffers 定义在组件下方，
+  // 通过运行时赋值解耦 hook 调用顺序与回调声明顺序。
   const [graphRefreshKey, forceIndexRerender] = useState(0);
+  const externalContentChangeRef = useRef<(paths: string[]) => void>(() => {});
   const vaultPath = activeVaultIndex >= 0 ? vaults[activeVaultIndex]?.path : null;
   useVaultWatcher(
     vaultPath,
     useCallback(() => forceIndexRerender(n => n + 1), []),
     useCallback(() => setTreeRefreshKey(k => k + 1), []),
+    useCallback((paths: string[]) => externalContentChangeRef.current(paths), []),
   );
 
   useEffect(() => {
@@ -1377,6 +1438,19 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
   const handleUpdateDownload = useCallback(async () => {
     if (!updateInfo) return;
+    // 系统包管理器安装（Linux 的 pacman / apt / dnf ...）：
+    // 内置 updater 无法替换 /usr/bin 下的程序文件，这里只负责把更新命令交给用户
+    if (updateInfo.installMethod === "system" && updateInfo.updateCommand) {
+      try {
+        await navigator.clipboard.writeText(updateInfo.updateCommand);
+        setUpdateCopied(true);
+        setTimeout(() => setUpdateCopied(false), 2000);
+      } catch {
+        setUpdateFailed(true);
+        setTimeout(() => setUpdateFailed(false), 4000);
+      }
+      return;
+    }
     setUpdateDownloading(true);
     setUpdateProgress({ downloaded: 0, total: null });
     try {
@@ -1392,8 +1466,11 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     } catch (e) {
       console.error(t("settings.about.updateFailed"), e);
       setUpdateDownloading(false);
+      // 失败必须有可见反馈，不能只写控制台
+      setUpdateFailed(true);
+      setTimeout(() => setUpdateFailed(false), 4000);
     }
-  }, [updateInfo]);
+  }, [updateInfo, t]);
 
   // Debounced mindmap sync to avoid flooding IPC on every keystroke
   const mindmapSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1452,6 +1529,33 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
   // 兼容包装：对激活窗格的内容变更（供 CodeMirror / 自动补全选中回调等既有调用点使用）
   const handleChange = useCallback((value: string) => handlePaneChange(activePaneIdRef.current, value), [handlePaneChange]);
+
+  // 外部修改自动刷新：vault watcher 检测到文件内容被外部（如 AI agent）改动时，
+  // 重读对应缓冲，让编辑器无需重新打开即可展示最新内容。
+  // - 仅刷新「无未保存修改」的缓冲：缓冲处于编辑态（modified）时跳过，避免覆盖用户输入；
+  //   用户保存（手动/自动）后的下一次外部写入会恢复刷新。
+  // - 与磁盘内容一致的写回（本应用自己保存触发的 watcher 回声）会被忽略。
+  const reloadExternallyChangedBuffers = useCallback(async (paths: string[]) => {
+    const norm = (p: string) => p.replace(/\\/g, "/").toLowerCase();
+    for (const changedPath of paths) {
+    const buf = buffersRef.current.find((b) => b.fileName && norm(b.fileName) === norm(changedPath));
+    if (!buf || !buf.fileName || buf.modified) continue;
+    try {
+      const text = await readTextFile(buf.fileName);
+        const fresh = buffersRef.current.find((b) => b.id === buf.id);
+        // 读取期间缓冲被切换/进入编辑态，或内容与磁盘一致，跳过
+        if (!fresh || fresh.modified || text === fresh.savedContent || text === fresh.content) continue;
+        updateBuffer(buf.id, { content: text, savedContent: text, modified: false });
+        if (buf.id === activeBufferIdRef.current) {
+          setSaveStatus("idle");
+          syncMindmapContent(text);
+        }
+      } catch {
+        // 文件可能正在被写入，等待下一次 watcher 事件
+      }
+    }
+  }, [updateBuffer, syncMindmapContent]);
+  externalContentChangeRef.current = (paths: string[]) => { void reloadExternallyChangedBuffers(paths); };
 
   // 用 ref 保存激活缓冲内容最新值，供仅在挂载时注册的快捷键（如思维导图）读取
   const contentRef = useRef(content);
@@ -3568,7 +3672,27 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     { id: "settings-graph", label: t("app.command.labels.graphSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.graphSettings").split(", "), action: () => openSettings("graph") },
     { id: "settings-image", label: t("app.command.labels.imageSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.imageSettings").split(", "), action: () => openSettings("image") },
     { id: "settings-canvas", label: t("app.command.labels.canvasSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.canvasSettings").split(", "), action: () => openSettings("canvas") },
+    { id: "settings-editor", label: t("app.command.labels.editorSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.editorSettings").split(", "), action: () => openSettings("editor") },
+    { id: "settings-terminal", label: t("app.command.labels.terminalSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.terminalSettings").split(", "), action: () => openSettings("terminal") },
+    { id: "settings-publish", label: t("app.command.labels.publishSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.publishSettings").split(", "), action: () => openSettings("publish") },
+    { id: "settings-vim", label: t("app.command.labels.vimSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.vimSettings").split(", "), action: () => openSettings("vim") },
+    { id: "settings-cli", label: t("app.command.labels.cliSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.cliSettings").split(", "), action: () => openSettings("cli") },
     { id: "settings-about", label: t("app.command.labels.about"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.about").split(", "), action: () => openSettings("about") },
+
+    // 设置项级索引（settingsSearchIndex 注册表驱动）：名称 + 描述都可搜，
+    // 选中后打开对应标签页并滚动定位 + 聚焦高亮该设置项
+    ...SETTINGS_SEARCH_ITEMS.map((item) => ({
+      id: `settings-item:${item.id}`,
+      label: t(item.labelKey),
+      category: `${t("app.command.categories.settings")} · ${t(`settings.tabs.${item.tab}`)}`,
+      aliases: [t(item.labelKey), ...item.descKeys.map((d) => t(d))],
+      action: () => {
+        try {
+          localStorage.setItem("zmd-settings-focus-item", item.id);
+        } catch { /* ignore */ }
+        openSettings(item.tab);
+      },
+    })),
   ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleOpenExternalFile, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish, openSettings]);
 
   return (
@@ -3598,6 +3722,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
           outlineTrigger={outlineTrigger}
           side="left"
           tabs={leftTabs}
+          showFileIcons={showFileIcons}
           onMoveTabToSide={moveSidebarTab}
           onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
           graphViewOpen={graphViewOpen}
@@ -3628,14 +3753,32 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
                 </svg>
               </button>
               {updateInfo && !updateDownloading && (
-                <button className="update-btn" onClick={handleUpdateDownload} title={`New version v${updateInfo.version}`}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>v{updateInfo.version}</span>
+                <button
+                  className="update-btn"
+                  onClick={handleUpdateDownload}
+                  title={
+                    updateInfo.installMethod === "system" && updateInfo.updateCommand
+                      ? `${t("settings.about.copyCommand")}: ${updateInfo.updateCommand}`
+                      : `New version v${updateInfo.version}`
+                  }
+                >
+                  {updateInfo.installMethod === "system" ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="12" height="12" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  )}
+                  <span>{updateCopied ? t("settings.about.copied") : `v${updateInfo.version}`}</span>
                 </button>
+              )}
+              {updateFailed && (
+                <span className="update-error">{t("app.update.downloadFailed")}</span>
               )}
               {updateDownloading && (
                 <div className="update-progress">
@@ -4383,6 +4526,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
             outlineTrigger={outlineTrigger}
             side="right"
             tabs={rightTabs}
+            showFileIcons={showFileIcons}
             onMoveTabToSide={moveSidebarTab}
             onOpenGlobalGraph={() => setGraphViewOpen((prev) => !prev)}
             graphViewOpen={graphViewOpen}

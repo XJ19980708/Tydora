@@ -39,6 +39,9 @@
       "codeBlockToolbarStyleDesc": "Choose how the language selector and action buttons appear on code blocks.",
       "codeBlockToolbarMinimal": "Floating (minimal)",
       "codeBlockToolbarClassic": "Top bar (with copy/delete)",
+      "uiScale": "Interface Scale",
+      "uiScaleDesc": "Scale the UI and text automatically based on screen resolution, or set a fixed ratio.",
+      "uiScaleAuto": "Auto (follow screen resolution)",
       "menuDensity": "Menu Item Height",
       "menuDensityDesc": "Vertical spacing of context menus, dropdowns, and similar menus.",
       "menuDensityCompact": "Compact",
@@ -52,6 +55,8 @@
       "autoHideTopbarOnCollapseDesc": "When enabled, the top bar auto-hides when the sidebar is collapsed. When disabled, the top bar remains visible.",
       "expandOutlineOnOpen": "Expand Outline on Launch",
       "expandOutlineOnOpenDesc": "When enabled, opening a .md file via OS file association expands the sidebar and switches to the Outline view. When disabled, the sidebar stays collapsed.",
+      "showFileIcons": "Show File Icons",
+      "showFileIconsDesc": "Show file type icons in the file tree (folders, Markdown, canvas, images, videos, audio, etc.).",
       "language": "Language",
       "languageDesc": "Interface display language.",
       "analytics": "Together, we'll go the distance 🌿",
@@ -567,7 +572,12 @@
         "chore": "Chores",
         "other": "Other"
       },
-      "updateFailed": "Update failed:"
+      "updateFailed": "Update failed:",
+      "installSource": "Install Source",
+      "systemPackageHint": "Installed by the system package manager ({{manager}}). Use the package manager to update.",
+      "systemUpdateHint": "This install is managed by the system package manager and cannot replace its own files. Run the command below to update:",
+      "copyCommand": "Copy update command",
+      "copied": "Copied"
     },
     "vim": {
       "enable": "Enable Vim Mode",
@@ -805,6 +815,11 @@
         "graphSettings": "Graph Settings",
         "imageSettings": "Image Settings",
         "canvasSettings": "Canvas Settings",
+        "editorSettings": "Editor Settings",
+        "terminalSettings": "Terminal Settings",
+        "publishSettings": "Publish Settings",
+        "vimSettings": "Vim Mode Settings",
+        "cliSettings": "CLI & MCP Settings",
         "openVaultInNewWindow": "Open \"{{name}}\" in New Window",
         "about": "About",
         "toggleRightSidebar": "Toggle Right Sidebar"
@@ -830,6 +845,11 @@
         "graphSettings": "graph, relationship",
         "imageSettings": "image, picture",
         "canvasSettings": "canvas",
+        "editorSettings": "editor",
+        "terminalSettings": "terminal, shell",
+        "publishSettings": "publish",
+        "vimSettings": "vim, vim mode",
+        "cliSettings": "cli, mcp, command line",
         "about": "about, version"
       }
     }
@@ -1107,7 +1127,12 @@
       "table": "Table",
       "codeBlock": "Code Block",
       "mathBlock": "Math Block",
+      "toc": "Table of Contents",
       "wikiLink": "WikiLink"
+    },
+    "tocBlock": {
+      "title": "Table of Contents",
+      "empty": "No headings found"
     },
     "linkDialog": {
       "title": "Insert Link",

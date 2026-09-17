@@ -45,11 +45,23 @@ export function TableFloatingToolbar({ editor, tableElement, onClose, onContentC
     }
     if (tableStart === -1) return;
 
-    // 解析表格行（跳过分隔行 |---|---|）
+    // 解析表格行；分隔行（|:---:|---:|）的 : 标记记录列对齐，需要保留
     const dataLines: string[] = [];
+    let colAligns: string[] = [];
     for (let i = tableStart; i <= tableEnd; i++) {
       const line = lines[i].trim();
-      if (line.match(/^\|[\s\-:|]+\|$/)) continue; // 跳过分隔行
+      if (line.match(/^\|[\s\-:|]+\|$/)) {
+        if (colAligns.length === 0) {
+          colAligns = line.slice(1, -1).split("|").map((c) => {
+            const t = c.trim();
+            if (t.startsWith(":") && t.endsWith(":")) return "center";
+            if (t.endsWith(":")) return "right";
+            if (t.startsWith(":")) return "left";
+            return "";
+          });
+        }
+        continue; // 跳过分隔行
+      }
       dataLines.push(line);
     }
 
@@ -76,9 +88,11 @@ export function TableFloatingToolbar({ editor, tableElement, onClose, onContentC
       newRows.push(row);
     }
 
-    // 生成 Markdown 表格
+    // 生成 Markdown 表格（分隔行保留原列对齐，新增列默认左对齐）
+    const delimiter = (align: string) =>
+      align === "center" ? ":---:" : align === "right" ? "---:" : align === "left" ? ":---" : "---";
     const headerLine = "| " + newRows[0].join(" | ") + " |";
-    const separatorLine = "| " + newRows[0].map(() => "---").join(" | ") + " |";
+    const separatorLine = "| " + newRows[0].map((_c, idx) => delimiter(colAligns[idx] || "")).join(" | ") + " |";
     const dataLinesNew = newRows.slice(1).map(row => "| " + row.join(" | ") + " |");
     const tableMd = [headerLine, separatorLine, ...dataLinesNew].join("\n");
 
@@ -132,7 +146,14 @@ export function TableFloatingToolbar({ editor, tableElement, onClose, onContentC
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  const handleAlign = (align: string) => {
+  const handleAlign = (align: "left" | "center" | "right") => {
+    // 表格内（含多选单元格 CellSelection）：用 setCellAttribute 批量设置单元格 align，
+    // TableCell/TableHeader 内置 align 属性会渲染为 td/th 上的 text-align 样式
+    if (editor.isActive("tableCell") || editor.isActive("tableHeader")) {
+      editor.chain().focus().setCellAttribute("align", align).run();
+      return;
+    }
+    // 非表格场景：回退到段落级 textAlign
     editor.chain().focus().command(({ tr, state }) => {
       const { $from } = state.selection;
       for (let depth = $from.depth; depth >= 0; depth--) {

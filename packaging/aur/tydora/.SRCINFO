@@ -1,0 +1,24 @@
+pkgbase = tydora
+	pkgdesc = A modern Markdown editor built with Tauri: WYSIWYG and source modes, wiki-links, graph, canvas, terminal
+	pkgver = 0.2.9
+	pkgrel = 1
+	url = https://github.com/zuorn/Tydora
+	arch = x86_64
+	arch = aarch64
+	license = Apache
+	makedepends = cargo
+	makedepends = nodejs
+	makedepends = rust
+	depends = gtk3
+	depends = libsoup3
+	depends = openssl
+	depends = webkit2gtk-4.1
+	depends = xdg-utils
+	optdepends = nodejs: publish features (needs the markdown-publish CLI)
+	conflicts = tydora-bin
+	options = !debug
+	options = !lto
+	source = tydora-0.2.9.tar.gz::https://github.com/zuorn/Tydora/archive/refs/tags/v0.2.9.tar.gz
+	sha256sums = fb605cdb0a91416d1eacc6d67bc591ed5a2e1e073e3c0b6d409c7610e9b6966d
+
+pkgname = tydora

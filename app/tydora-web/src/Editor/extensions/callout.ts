@@ -3,6 +3,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Node as ProsemirrorNode } from "@tiptap/pm/model";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 
 // ── 支持的 callout 类型 ──
 const CALLOUT_TYPES: Record<string, { icon: string; label: string }> = {
@@ -194,6 +195,8 @@ export const Callout = Extension.create({
         parse: {
           // 让 markdown-it 在 callout blockquote 内把换行解析为硬换行 <br>
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "callout_hard_breaks")) return;
             markdownit.core.ruler.push("callout_hard_breaks", (state: any) => {
               let inCallout = false;
               for (const token of state.tokens) {

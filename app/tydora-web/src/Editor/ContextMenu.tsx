@@ -144,6 +144,11 @@ const ICONS = {
       <text x="7" y="16" fontSize="8" fill="currentColor" stroke="none" fontFamily="monospace">[[</text>
     </svg>
   ),
+  toc: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="14" y2="12" /><line x1="4" y1="18" x2="17" y2="18" />
+    </svg>
+  ),
 };
 
 // 三行图标按钮配置（使用工厂函数以便 i18n）
@@ -203,6 +208,7 @@ function createSubmenuItems(t: (key: string) => string): SubmenuItem[] {
         { name: "table", label: t("editor.contextMenu.table"), shortcutId: "table", icon: ICONS.table },
         { name: "code", label: t("editor.contextMenu.codeBlock"), shortcutId: "code-block", icon: ICONS.codeBlock },
         { name: "math", label: t("editor.contextMenu.mathBlock"), shortcutId: null, icon: ICONS.math },
+        { name: "toc", label: t("editor.contextMenu.toc"), shortcutId: null, icon: ICONS.toc },
         { divider: true, label: "" },
         { name: "wiki-link", label: t("editor.contextMenu.wikiLink"), shortcutId: null, icon: ICONS.wikiLink },
       ],

@@ -1,4 +1,5 @@
 import { Extension } from "@tiptap/core";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 
 /**
  * 逐行剥离 Markdown 源文本中的 <style> 块，避免 markdown-it 将其视为 HTML block
@@ -70,6 +71,8 @@ export const StripStyle = Extension.create({
       markdown: {
         parse: {
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "strip_style")) return;
             markdownit.core.ruler.before("block", "strip_style", (state: any) => {
               state.src = stripStyleBlocks(state.src);
             });

@@ -33,6 +33,7 @@ import { common, createLowlight } from "lowlight";
 import { Frontmatter } from "./extensions/frontmatter";
 import { StripStyle } from "./extensions/strip-style";
 import { Callout } from "./extensions/callout";
+import { Toc } from "./extensions/toc";
 import { Mermaid } from "./extensions/mermaid";
 import { WikiLink } from "./extensions/wiki-link";
 import { Tag } from "./extensions/tag";
@@ -59,6 +60,9 @@ import { prefixGConfig } from "../vim/config/prefixG";
 import { prefixZConfig } from "../vim/config/prefixZ";
 import { prefixTConfig } from "../vim/config/prefixT";
 import { buildPositionMap, mdOffsetToPmPos, pmPosToMdOffset } from "./markdown-position-map";
+import { computeSpliceDiff } from "./text-patch";
+import { DOMParser as ProseMirrorDOMParser, Fragment, Slice } from "@tiptap/pm/model";
+import type { Node as PMNode } from "@tiptap/pm/model";
 import { ContextMenu } from "./ContextMenu";
 import { LinkDialog } from "./LinkDialog";
 import { MathDialog } from "./MathDialog";
@@ -86,6 +90,114 @@ function getEditorView(editor: any): import("prosemirror-view").EditorView | nul
   } catch {
     return null;
   }
+}
+
+/**
+ * 对同文件的外部内容变更做块级差异补丁：
+ * 把新 Markdown 用与 setContent 完全相同的解析链路（tiptap-markdown parser →
+ * prosemirror DOMParser）解析为文档块，与当前文档的顶层块逐个比较（公共前缀/后缀），
+ * 仅替换发生变化的块区间 —— 在精确的块边界用闭合 Slice（openStart/openEnd = 0）替换，
+ * 块永远不会被合并/拆分；未变化块的位置不受影响 → 光标与滚动稳定，DOM 只更新差异块。
+ *
+ * 注意不能用 Markdown 字符串级 diff + parseSlice 开放切片：
+ * 开放端会与相邻同类型块合并（标题与下一段粘成一行），且源码偏移到 PM 位置的
+ * 映射只是就近吸附，落点可能不在块边界上。
+ *
+ * 返回 false 表示无法安全打补丁（解析异常、整篇重写等），调用方应回退整篇 setContent。
+ */
+function tryApplyExternalMarkdownPatch(editor: Editor, newMarkdown: string): boolean {
+  try {
+    const parser = (editor.storage as any)?.markdown?.parser;
+    const html = typeof parser?.parse === "function" ? parser.parse(newMarkdown) : null;
+    if (typeof html !== "string") return false;
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    const parsed = ProseMirrorDOMParser.fromSchema(editor.schema).parse(el);
+    const newBlocks: PMNode[] = [];
+    parsed.forEach((n) => newBlocks.push(n));
+
+    const oldBlocks: PMNode[] = [];
+    editor.state.doc.forEach((n) => oldBlocks.push(n));
+
+    // 顶层块公共前缀/后缀：找出首尾仍相等、无需触碰的范围
+    const diff = computeSpliceDiff(oldBlocks, newBlocks, (a, b) => a.eq(b));
+    if (!diff) return true;
+    // 整篇重写：走调用方的 setContent 回退，保留其光标/滚动恢复逻辑
+    if (
+      diff.start === 0 &&
+      diff.deleteCount === oldBlocks.length &&
+      diff.deleteCount === diff.insertCount &&
+      oldBlocks.length > 1
+    ) {
+      return false;
+    }
+
+    // 计算被替换块区间的精确 PM 位置（块边界）
+    let from = 0;
+    for (let i = 0; i < diff.start; i++) from += oldBlocks[i].nodeSize;
+    let to = from;
+    for (let i = diff.start; i < diff.start + diff.deleteCount; i++) to += oldBlocks[i].nodeSize;
+
+    // doc 内容表达式为 block+：替换结果为空时补一个空段落，避免产生不合法的空 doc
+    const replaced = newBlocks.slice(diff.start, diff.start + diff.insertCount);
+    const fragment = replaced.length > 0
+      ? Fragment.fromArray(replaced)
+      : Fragment.fromArray([editor.state.schema.nodes.paragraph.create()]);
+    editor.view.dispatch(editor.state.tr.replace(from, to, new Slice(fragment, 0, 0)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 滚动到指定标题并高亮（目录锚点链接 #标题 跳转共用）。
+ * 匹配规则与 scrollToHeading 一致：全文匹配 > 双向包含（按长度比例给分）。
+ */
+function scrollEditorToHeading(
+  editor: Editor,
+  container: HTMLElement | null,
+  rawText: string,
+): void {
+  const cleanText = rawText.replace(/[#*_`~]/g, "").trim();
+  if (!cleanText) return;
+
+  const { doc } = editor.state;
+  let bestPos: number | null = null;
+  let bestScore = 0;
+
+  doc.descendants((node: any, pos: number) => {
+    if (node.type.name === "heading") {
+      const headingText = node.textContent.replace(/[#*_`~]/g, "").trim();
+      let score = 0;
+      if (headingText === cleanText) {
+        score = 100;
+      } else if (headingText.includes(cleanText) || cleanText.includes(headingText)) {
+        score = (Math.min(headingText.length, cleanText.length) /
+          Math.max(headingText.length, cleanText.length)) * 50;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestPos = pos;
+      }
+    }
+  });
+
+  if (bestPos === null || bestScore <= 0) return;
+  const targetPos = bestPos as number;
+  editor.chain().focus().setTextSelection(targetPos).run();
+  editor.commands.highlightHeading(targetPos, 1500);
+
+  requestAnimationFrame(() => {
+    const scrollContainer = container?.querySelector(".tiptap-editor");
+    if (!scrollContainer) return;
+    const view = getEditorView(editor);
+    const coords = view?.coordsAtPos?.(targetPos);
+    if (coords) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      scrollContainer.scrollTop += coords.top - containerRect.top - 20;
+    }
+  });
 }
 
 /** macOS WKWebView：折叠选区后清掉原生 Selection 残留（尤其跨块选区后点击）。 */
@@ -414,6 +526,10 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
     }, [typewriterMode]);
 
     const imageSettingsRef = useRef(imageSettings);
+    // editorSettings 用 ref 供 useEditor 的回调读取：
+    // useEditor 传非空 deps 时 @tiptap/react v3 不再做 options 同步，
+    // 回调闭包会停在编辑器创建那一刻，settings 变更（如字数统计类型）不会生效。
+    const editorSettingsRef = useRef(editorSettings);
     const sourceEditorRef = useRef<CodeMirrorEditorHandle>(null);
     // 记录源码编辑器中最近一次的选区（Markdown 源码偏移），用于 SV → IR 时恢复光标
     const sourceSelectionRef = useRef<{ anchor: number; head: number }>({ anchor: 0, head: 0 });
@@ -447,6 +563,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
     currentFilePathRef.current = currentFilePath;
     activeVaultPathRef.current = activeVaultPath;
     imageSettingsRef.current = imageSettings;
+    editorSettingsRef.current = editorSettings;
 
     // 首帧渲染后异步注册额外 lowlight 语言（vim/haskell 等 14 种）
     useEffect(() => { ensureExtraLanguages(); }, []);
@@ -477,6 +594,19 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
     vimConflictKeysRef.current = vimConflictKeys ?? {};
     // jk 快速序列（insert → normal）追踪：记录上次 j 按下的时间戳
     const vimJkRef = useRef<{ lastJAt: number }>({ lastJAt: 0 });
+
+    // 扩展相关设置的签名：这些开关影响 extensions 数组，而 setOptions 不会重装扩展，
+    // 必须通过 useEditor deps 变化触发编辑器重建才能生效（重建后 content 取当前 value）。
+    // 其余设置（如 counterType）通过 *Ref 在回调内实时读取，无需进入签名。
+    const extensionsSignature = [
+      editorSettings?.frontmatter !== false,
+      editorSettings?.callout !== false,
+      editorSettings?.mermaid !== false,
+      editorSettings?.wikiLink !== false,
+      editorSettings?.math !== false,
+      editorSettings?.tableToolbar !== false,
+      vimEnabled,
+    ].join("|");
 
     const editor = useEditor({
       extensions: [
@@ -1244,6 +1374,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         StripStyle,
         ...(editorSettings?.frontmatter !== false ? [Frontmatter] : []),
         ...(editorSettings?.callout !== false ? [Callout] : []),
+        Toc,
         ...(editorSettings?.mermaid !== false ? [Mermaid] : []),
         ...(editorSettings?.wikiLink !== false ? [WikiLink] : []),
         ...(editorSettings?.math !== false
@@ -1280,7 +1411,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         }
 
         const text = ed.getText();
-        const count = editorSettings?.counterType === "markdown"
+        const count = editorSettingsRef.current?.counterType === "markdown"
           ? (md ?? "").length
           : text.replace(/\s/g, "").length;
         onWordCountRef.current?.(count);
@@ -1591,7 +1722,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
           return content.content.textBetween(0, content.content.size, '\n', '\n');
         },
       },
-    }, [vimEnabled]);
+    }, [extensionsSignature]);
 
     // 图片处理
     const handleImageFile = useCallback(async (file: File) => {
@@ -1806,6 +1937,18 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         e.preventDefault();
         e.stopPropagation();
 
+        // 纯锚点链接（#标题，目录/脚注引用）：滚动到对应标题并高亮
+        if (href.startsWith("#")) {
+          let hashText = href.slice(1);
+          try {
+            hashText = decodeURIComponent(hashText);
+          } catch {
+            /* 保留原始文本 */
+          }
+          scrollEditorToHeading(editor, containerRef.current, hashText);
+          return;
+        }
+
         if (href.startsWith("http://") || href.startsWith("https://")) {
           invoke("open_url", { url: href });
         } else if (!href.startsWith("wikilink://")) {
@@ -2014,10 +2157,10 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
             case "align-right": {
               const align = op === "align-left" ? "left"
                          : op === "align-center" ? "center" : "right";
-              // 先试 table 单元格级（光标在单元格内时生效，setCellAttribute 返回 false 时 fallback 到段落）
+              // 先试 table 单元格级（光标/多选在单元格内时生效，setCellAttribute 返回 false 时 fallback 到段落）
               let ok = false;
               try {
-                ok = (ed.chain().focus() as any).setCellAttribute?.("textAlign", align)?.run?.() ?? false;
+                ok = (ed.chain().focus() as any).setCellAttribute?.("align", align)?.run?.() ?? false;
               } catch { ok = false; }
               if (!ok) {
                 ok = ed.chain().focus().updateAttributes("paragraph", { textAlign: align }).run();
@@ -2188,65 +2331,35 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       },
       scrollToHeading: (text: string, _line: number) => {
         if (!editor) return;
-        const cleanText = text.replace(/[#*_`~]/g, "").trim();
-
-        // 查找文档中的标题节点
-        const { doc } = editor.state;
-        let bestPos: number | null = null;
-        let bestScore = 0;
-
-        doc.descendants((node: any, pos: number) => {
-          if (node.type.name === "heading") {
-            const headingText = node.textContent.replace(/[#*_`~]/g, "").trim();
-            let score = 0;
-            if (headingText === cleanText) {
-              score = 100;
-            } else if (headingText.includes(cleanText) || cleanText.includes(headingText)) {
-              score = (Math.min(headingText.length, cleanText.length) /
-                Math.max(headingText.length, cleanText.length)) * 50;
-            }
-            if (score > bestScore) {
-              bestScore = score;
-              bestPos = pos;
-            }
-          }
-        });
-
-        if (bestPos !== null && bestScore > 0) {
-          editor.chain().focus().setTextSelection(bestPos).run();
-          
-          // 高亮标题文字 1.5 秒
-          editor.commands.highlightHeading(bestPos, 1500);
-          
-          // 使用 requestAnimationFrame 确保编辑器更新后滚动
-          requestAnimationFrame(() => {
-            // 滚动容器是 .tiptap-editor，不是 editor-container
-            const scrollContainer = containerRef.current?.querySelector('.tiptap-editor');
-            if (!scrollContainer) return;
-            
-            const view = getEditorView(editor);
-            const coords = view?.coordsAtPos?.(bestPos!);
-            if (coords) {
-              const containerRect = scrollContainer.getBoundingClientRect();
-              // 计算滚动距离：元素在视口的位置 - 容器在视口的位置 - 顶部边距
-              const scrollDistance = coords.top - containerRect.top - 20;
-              scrollContainer.scrollTop += scrollDistance;
-            }
-          });
-        }
+        scrollEditorToHeading(editor, containerRef.current, text);
       },
       scrollToLine: (line: number) => {
         if (!editor) return;
         const { doc } = editor.state;
-        const totalLines = doc.textContent.split("\n").length;
-        const ratio = Math.min((line - 1) / Math.max(totalLines - 1, 1), 1);
-        const pos = Math.floor(ratio * doc.content.size);
+        // doc.textContent 不带换行（块间无分隔符），split("\n") 永远只有 1 行，
+        // 旧实现任何 line>1 都会跳到文末。这里按「每个 textblock 一行 +
+        // hardBreak 额外换行」建立 行号 → PM 位置 表。
+        const lineStarts: number[] = [];
+        doc.descendants((node: any, pos: number) => {
+          if (!node.isTextblock) return;
+          lineStarts.push(pos + 1);
+          let offset = 0;
+          node.content.forEach((child: any) => {
+            if (child.type.name === "hardBreak") {
+              lineStarts.push(pos + 1 + offset + child.nodeSize);
+            }
+            offset += child.nodeSize;
+          });
+        });
+        if (lineStarts.length === 0) return;
+        const clampedLine = Math.max(1, Math.min(line, lineStarts.length));
+        const pos = lineStarts[clampedLine - 1];
         editor.chain().focus().setTextSelection(pos).run();
 
         requestAnimationFrame(() => {
           const scrollContainer = containerRef.current?.querySelector('.tiptap-editor');
           if (!scrollContainer) return;
-          
+
           const view = getEditorView(editor);
           const coords = view?.coordsAtPos?.(pos);
           if (coords) {
@@ -2269,16 +2382,24 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       findMatches: (query: string) => {
         if (!editor || !query) return [];
         const results: Array<{ from: number; to: number }> = [];
-        const content = editor.state.doc.textContent;
-        const lowerContent = content.toLowerCase();
         const lowerQuery = query.toLowerCase();
-        let startIndex = 0;
-        while (startIndex < lowerContent.length) {
-          const idx = lowerContent.indexOf(lowerQuery, startIndex);
-          if (idx === -1) break;
-          results.push({ from: idx + 1, to: idx + query.length + 1 });
-          startIndex = idx + 1;
-        }
+        // 逐 textblock（段落/标题/代码块等）搜索，而不是用 doc.textContent：
+        // textContent 不带块间分隔符，索引无法映射回 PM 位置（每跨一个块漂移 2），
+        // 且相邻块首尾拼接会产生跨段误匹配。
+        // 行内原子节点（图片/行内公式/硬换行）用 \uFFFC 占位（PM 尺寸恰为 1），
+        // 保证块内字符串索引与 PM 位置一一对应。
+        editor.state.doc.descendants((node: any, pos: number) => {
+          if (!node.isTextblock) return;
+          const text: string = node.textBetween(0, node.content.size, "", "\uFFFC");
+          const lowerText = text.toLowerCase();
+          let startIndex = 0;
+          while (startIndex <= lowerText.length - lowerQuery.length) {
+            const idx = lowerText.indexOf(lowerQuery, startIndex);
+            if (idx === -1) break;
+            results.push({ from: pos + 1 + idx, to: pos + 1 + idx + query.length });
+            startIndex = idx + 1;
+          }
+        });
         return results;
       },
       selectMatch: (from: number, to: number) => {
@@ -2359,8 +2480,25 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         // storage.markdown 未就绪时：不比较，保守地不同步（避免覆盖文档内容/引发 setContent 震荡）。
         // 下一帧 onUpdate 回调里会带着 md 再执行 onChange，不会因此丢失 value。
         if (currentContent != null && value !== currentContent) {
+          // 同文件外部内容更新（如 AI agent 写入）：优先做块级差异补丁，
+          // 保光标、保滚动、局部 DOM 更新防闪烁。
           isInternalRef.current = true;
-          editor.commands.setContent(value);
+          if (!tryApplyExternalMarkdownPatch(editor, value)) {
+            // 回退：整篇 setContent，并尽量恢复光标与滚动位置
+            const prevSel = editor.state.selection;
+            const scroller = containerRef.current?.querySelector(".tiptap-editor") as HTMLElement | null;
+            const prevScrollTop = scroller?.scrollTop ?? 0;
+            editor.commands.setContent(value);
+            isInternalRef.current = true; // 选区恢复不回传 onChange
+            const size = editor.state.doc.content.size;
+            const from = Math.max(1, Math.min(prevSel.from, size));
+            const to = Math.max(1, Math.min(prevSel.to, size));
+            editor.commands.setTextSelection({ from, to });
+            requestAnimationFrame(() => {
+              const el = containerRef.current?.querySelector(".tiptap-editor") as HTMLElement | null;
+              if (el) el.scrollTop = prevScrollTop;
+            });
+          }
         }
       }
     }, [value, editor, currentFilePath, mode]);

@@ -39,6 +39,9 @@
       "codeBlockToolbarStyleDesc": "选择代码块语言选择器与操作按钮的显示样式。",
       "codeBlockToolbarMinimal": "浮动（精简）",
       "codeBlockToolbarClassic": "顶栏（含复制/删除）",
+      "uiScale": "界面缩放",
+      "uiScaleDesc": "根据屏幕分辨率自动调整界面与文字大小，也可手动指定缩放比例。",
+      "uiScaleAuto": "自动（跟随屏幕分辨率）",
       "menuDensity": "菜单项高度",
       "menuDensityDesc": "右键菜单、下拉菜单等条目的垂直间距。",
       "menuDensityCompact": "紧凑",
@@ -52,6 +55,8 @@
       "autoHideTopbarOnCollapseDesc": "开启后，折叠侧栏时顶部栏也会自动隐藏。关闭后，折叠侧栏时顶部栏保持可见。",
       "expandOutlineOnOpen": "启动时展开大纲",
       "expandOutlineOnOpenDesc": "开启后，双击 .md 文件用本应用打开时，侧栏自动展开并切换到大纲视图。关闭后保持折叠侧栏的原行为。",
+      "showFileIcons": "显示文件图标",
+      "showFileIconsDesc": "在文件树中显示文件类型图标（文件夹、Markdown、画布、图片、视频、音频等）。",
       "language": "语言",
       "languageDesc": "界面显示语言。",
       "analytics": "陪你走得更远 🌿",
@@ -567,7 +572,12 @@
         "chore": "其他改动",
         "other": "其他"
       },
-      "updateFailed": "更新失败:"
+      "updateFailed": "更新失败:",
+      "installSource": "安装来源",
+      "systemPackageHint": "由系统包管理器（{{manager}}）安装，更新请使用包管理器。",
+      "systemUpdateHint": "系统包管理器安装的应用无法被自身替换，请执行下面的命令更新：",
+      "copyCommand": "复制更新命令",
+      "copied": "已复制"
     },
     "vim": {
       "enable": "启用 Vim 模式",
@@ -804,6 +814,11 @@
         "graphSettings": "关系图谱设置",
         "imageSettings": "图像设置",
         "canvasSettings": "白板设置",
+        "editorSettings": "编辑器设置",
+        "terminalSettings": "终端设置",
+        "publishSettings": "发布设置",
+        "vimSettings": "Vim 模式设置",
+        "cliSettings": "CLI 与 MCP 设置",
         "openVaultInNewWindow": "在新窗口打开「{{name}}」知识库",
         "about": "关于",
         "toggleRightSidebar": "切换右侧栏"
@@ -829,6 +844,11 @@
         "graphSettings": "图谱, graph, 关系",
         "imageSettings": "图像, image, 图片",
         "canvasSettings": "白板, canvas, 画布",
+        "editorSettings": "编辑器, editor",
+        "terminalSettings": "终端, terminal",
+        "publishSettings": "发布, publish",
+        "vimSettings": "vim, vim 模式",
+        "cliSettings": "cli, mcp, 命令行",
         "about": "about, 版本"
       }
     }
@@ -1107,7 +1127,12 @@
       "table": "表格",
       "codeBlock": "代码块",
       "mathBlock": "公式块",
+      "toc": "内容目录",
       "wikiLink": "WikiLink"
+    },
+    "tocBlock": {
+      "title": "目录",
+      "empty": "暂无标题"
     },
     "linkDialog": {
       "title": "插入链接",

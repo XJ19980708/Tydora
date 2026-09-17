@@ -1,4 +1,5 @@
 import { Node } from "@tiptap/core";
+import { installMarkdownRuleOnce } from "./markdown-setup";
 import mermaid from "mermaid";
 import hljs from "highlight.js/lib/common";
 import { EditorView as CMView, keymap, lineNumbers } from "@codemirror/view";
@@ -333,6 +334,8 @@ export const Mermaid = Node.create({
         },
         parse: {
           setup(markdownit: any) {
+            // 规则只安装一次：parse() 每次解析都会重跑 setup
+            if (!installMarkdownRuleOnce(markdownit, "mermaid_parse")) return;
             markdownit.core.ruler.after("block", "mermaid_parse", (mdState: any) => {
               const newTokens: any[] = [];
               for (let i = 0; i < mdState.tokens.length; i++) {

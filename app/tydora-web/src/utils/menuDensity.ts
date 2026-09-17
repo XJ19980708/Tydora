@@ -5,7 +5,7 @@ export function normalizeMenuDensity(value: unknown): MenuDensity {
   if (value === "comfortable" || value === "normal" || value === "compact") {
     return value;
   }
-  return "compact";
+  return "normal";
 }
 
 export function applyMenuDensity(density: MenuDensity): void {
@@ -50,7 +50,7 @@ export function applyMenuDensityFromStorage(): void {
     applyMenuDensity(normalizeMenuDensity(settings.menuDensity));
     applyEditorSpacingFromSettings(settings);
   } catch {
-    applyMenuDensity("compact");
+    applyMenuDensity("normal");
     applyEditorSpacingFromSettings({});
   }
 }
