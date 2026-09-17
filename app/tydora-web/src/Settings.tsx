@@ -42,6 +42,7 @@ import {
   normalizeMenuDensity,
   type MenuDensity,
 } from "./utils/menuDensity";
+import { applyUiScaleFromSettings } from "./utils/uiScale";
 import shortcutsConfig from "./config/shortcuts.json";
 import { formatShortcutKey, matchShortcut, loadShortcuts, getShortcutKeys, resolveSavedKeys } from "./Editor/shortcuts";
 import { isAnalyticsEnabled, setAnalyticsEnabled, track, trackPageview, ANALYTICS_EVENTS } from "./analytics";
@@ -132,6 +133,8 @@ interface GeneralSettings {
   codeBlockToolbarStyle: CodeBlockToolbarStyle;
   /** 菜单项高度密度 */
   menuDensity: MenuDensity;
+  /** 界面缩放："auto"（按屏幕分辨率自适应）或固定比例（0.75~1.5） */
+  uiScale: "auto" | number;
   /** 侧栏 tab 在左/右侧栏的分配 */
   sidebarTabPlacement: SidebarTabPlacement;
   /** 文件树是否显示文件类型图标 */
@@ -165,6 +168,7 @@ export const DEFAULT_GENERAL: GeneralSettings = {
   expandOutlineOnOpen: true,
   codeBlockToolbarStyle: "minimal",
   menuDensity: "normal",
+  uiScale: "auto",
   sidebarTabPlacement: {
     files: "left",
     search: "left",
@@ -476,6 +480,30 @@ function GeneralSettingsContent({
   return (
     <div className="canvas-settings-page">
       <div className="canvas-settings-card">
+        <div className="canvas-settings-row">
+          <div className="canvas-settings-row-label">
+            <span className="canvas-settings-row-title">{t("settings.appearance.uiScale")}</span>
+            <span className="canvas-settings-row-desc">{t("settings.appearance.uiScaleDesc")}</span>
+          </div>
+          <SettingsSelect
+            value={String(settings.uiScale ?? "auto")}
+            onChange={(v) =>
+              onChange({
+                ...settings,
+                uiScale: v === "auto" ? "auto" : Number(v),
+              })
+            }
+            options={[
+              { value: "auto", label: t("settings.appearance.uiScaleAuto") },
+              { value: "0.75", label: "75%" },
+              { value: "0.85", label: "85%" },
+              { value: "1", label: "100%" },
+              { value: "1.1", label: "110%" },
+              { value: "1.25", label: "125%" },
+              { value: "1.5", label: "150%" },
+            ]}
+          />
+        </div>
         <div className="canvas-settings-row">
           <div className="canvas-settings-row-label">
             <span className="canvas-settings-row-title">{t("settings.appearance.menuDensity")}</span>
@@ -3033,11 +3061,12 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
     }
   });
 
-  // 保存通用设置到 localStorage，并立即应用菜单密度 / 间距相关 CSS 变量
+  // 保存通用设置到 localStorage，并立即应用菜单密度 / 间距 / 界面缩放
   useEffect(() => {
     localStorage.setItem(GENERAL_SETTINGS_KEY, JSON.stringify(generalSettings));
     applyMenuDensity(generalSettings.menuDensity);
     applyEditorSpacingFromSettings(generalSettings);
+    applyUiScaleFromSettings(generalSettings);
   }, [generalSettings]);
 
   // 思维导图设置状态
