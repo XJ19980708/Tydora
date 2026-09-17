@@ -4130,10 +4130,10 @@ export default function Sidebar({
 
           {activeTab === "outline" && (
             <div ref={outlinePanelRef} tabIndex={-1} style={{ outline: "none", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-              {activeVault && currentFilePath ? (
+              {currentFilePath ? (
                 <div className="sidebar-inspector">
-                  {/* 孤立笔记（既无出链也无人引用）不展示关系图谱，只留大纲 */}
-                  {(noteLinkStats.hasOutLinks || noteLinkStats.hasBacklinks) && (
+                  {/* 孤立笔记（既无出链也无人引用）不展示关系图谱，只留大纲；仓外单文件无仓库，跳过图谱 */}
+                  {activeVault && (noteLinkStats.hasOutLinks || noteLinkStats.hasBacklinks) && (
                   <section className="inspector-section">
                     <div className="inspector-section-header">
                       <h3 className="inspector-section-title">Graph</h3>
@@ -4179,7 +4179,7 @@ export default function Sidebar({
                     <Outline content={content} onSelectHeading={onSelectHeading} />
                   </section>
                   {/* 文档本身没有 [[...]] 出链时，「Linked references」只会显示空态，直接整段隐藏 */}
-                  {noteLinkStats.hasOutLinks && (
+                  {activeVault && noteLinkStats.hasOutLinks && (
                   <section className="inspector-section">
                     <h3 className="inspector-section-title">Linked references</h3>
                     <LinkedReferences

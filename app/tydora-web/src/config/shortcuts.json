@@ -48,6 +48,7 @@
     { "id": "toggle-mode", "label": "模式切换", "keys": ["Ctrl", "/"], "group": "模式" },
     { "id": "escape", "label": "关闭提示", "keys": ["Escape"], "group": "系统" },
     { "id": "quick-open", "label": "快速打开文件", "keys": ["Ctrl", "O"], "group": "系统" },
+    { "id": "open-external-file", "label": "打开文件（不导入）", "keys": ["Ctrl", "Alt", "O"], "group": "系统" },
     { "id": "command-palette", "label": "命令面板", "keys": ["Ctrl", "P"], "group": "系统" },
     { "id": "open-settings", "label": "打开/关闭设置", "keys": ["Ctrl", ","], "group": "系统" }
   ],
@@ -77,6 +78,7 @@
   "commandDisplay": {
     "save": "Ctrl+S",
     "open": "Ctrl+O",
+    "open-external-file": "Ctrl+Alt+O",
     "toggle-mode": "Ctrl+/",
     "toggle-typewriter": "Ctrl+Alt+T",
     "split-lr": "Ctrl+\\",

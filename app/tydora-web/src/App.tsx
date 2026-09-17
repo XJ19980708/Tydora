@@ -122,27 +122,44 @@ const EDITOR_WINDOW_STATE_KEY = "zmd-editor-window-state";
 const RECENT_FILES_KEY = "zmd-recent-files";
 const PINNED_ITEMS_KEY = "zmd-pinned-toolbar-items";
 
+// 最近访问文件中「无仓库（仓外单文件）」的桶名
+const GLOBAL_RECENT_KEY = "__global__";
+
 // 最近访问文件的最大数量
 const MAX_RECENT_FILES = 20;
+
+// 判断路径是否位于某个仓库根之下（统一分隔符后按前缀比较）
+function isPathInsideVault(target: string, vaultRoot: string): boolean {
+  const normalize = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "");
+  const t = normalize(target);
+  const root = normalize(vaultRoot);
+  if (!root) return false;
+  return t === root || t.startsWith(`${root}/`);
+}
+
+// Markdown 扩展名（编辑器视图判定 + 打开文件对话框过滤器共用）
+const MARKDOWN_EXTS = ["md", "markdown", "mdx"];
+
+// 可编辑文本扩展名（编辑器视图判定 + 打开文件对话框过滤器共用）
+const EDITABLE_EXTS = [
+  "md", "markdown", "txt", "json", "js", "ts", "tsx", "jsx",
+  "html", "css", "scss", "less", "xml", "yaml", "yml",
+  "py", "rs", "go", "java", "c", "cpp", "h", "hpp",
+  "sh", "bash", "zsh", "bat", "ps1",
+  "toml", "ini", "cfg", "conf", "log",
+  "vue", "svelte", "astro",
+];
 
 // 判断文件是否为可编辑的文本文件
 function isEditableFile(fileName: string): boolean {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  const editableExts = [
-    "md", "markdown", "txt", "json", "js", "ts", "tsx", "jsx",
-    "html", "css", "scss", "less", "xml", "yaml", "yml",
-    "py", "rs", "go", "java", "c", "cpp", "h", "hpp",
-    "sh", "bash", "zsh", "bat", "ps1",
-    "toml", "ini", "cfg", "conf", "log",
-    "vue", "svelte", "astro",
-  ];
-  return editableExts.includes(ext);
+  return EDITABLE_EXTS.includes(ext);
 }
 
 // 判断文件是否为 Markdown 文件
 function isMarkdownFile(fileName: string): boolean {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return ["md", "markdown", "mdx"].includes(ext);
+  return MARKDOWN_EXTS.includes(ext);
 }
 
 // 命令面板显示快捷键：优先取 editor / app 配置，并用平台相关符号格式化（macOS：Ctrl→⌘）
@@ -991,6 +1008,31 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(recentFiles));
   }, [recentFiles]);
 
+  // 记录最近访问文件：属于某个仓库的写该仓库桶，仓外单文件写全局桶
+  const pushRecentFile = useCallback((path: string, vaultPath: string | null) => {
+    setRecentFiles((prev) => {
+      const key = vaultPath || GLOBAL_RECENT_KEY;
+      const filtered = (prev[key] || []).filter((p) => p !== path);
+      return { ...prev, [key]: [path, ...filtered].slice(0, MAX_RECENT_FILES) };
+    });
+  }, []);
+
+  // 文件所属仓库路径；不在任何仓库内（仓外单文件）返回 null。
+  // 不能用 activeVaultIndex 判断：编辑窗口与主窗口共享 localStorage，激活仓库同样非空。
+  const vaultPathForFile = useCallback(
+    (path: string) => vaults.find((v) => isPathInsideVault(path, v.path))?.path ?? null,
+    [vaults],
+  );
+
+  // 最近访问文件：当前仓库桶 + 全局（仓外）桶去重合并，QuickOpen 与欢迎页共用
+  const mergedRecentFiles = useMemo(() => {
+    const vaultBucket = activeVaultIndex >= 0 ? recentFiles[vaults[activeVaultIndex]?.path] || [] : [];
+    const globalBucket = recentFiles[GLOBAL_RECENT_KEY] || [];
+    if (!globalBucket.length) return vaultBucket;
+    const seen = new Set(vaultBucket);
+    return [...vaultBucket, ...globalBucket.filter((p) => !seen.has(p))].slice(0, MAX_RECENT_FILES);
+  }, [recentFiles, activeVaultIndex, vaults]);
+
   // 关闭"更多"菜单（点击外部）
   useEffect(() => {
     if (!moreMenuOpen) return;
@@ -1176,6 +1218,12 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     );
     if (matchingVaultIndex >= 0) {
       setActiveVaultIndex(matchingVaultIndex);
+    }
+    // 新窗口打开文件：遵循「启动时展开大纲」设置，展开大纲所在的那一侧栏
+    if (expandOutlineOnOpen) {
+      if (sidebarTabPlacement.outline === "left") setSidebarOpen(true);
+      else setRightSidebarOpen(true);
+      setOutlineTrigger((n) => n + 1);
     }
     // .canvas 文件：在主区域显示白板
     if (initialFilePath.endsWith('.canvas')) {
@@ -1642,25 +1690,22 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   // 默认折叠侧栏（与新窗口打开体验一致）；若开启"启动时展开大纲"，则展开侧栏并切到大纲
   const handleExternalOpenFile = useCallback((filePath: string) => {
     if (expandOutlineOnOpen) {
-      setSidebarOpen(true);
+      // 展开大纲所在的那一侧栏（默认在右栏，只开左栏的话大纲页签是看不见的）
+      if (sidebarTabPlacement.outline === "left") setSidebarOpen(true);
+      else setRightSidebarOpen(true);
       setOutlineTrigger((n) => n + 1);
     } else {
       setSidebarOpen(false);
     }
 
     // 如果文件位于已注册仓库内，激活对应仓库（文件树选中状态、链接索引等随之生效）
-    const normalize = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "");
-    const normPath = normalize(filePath);
-    const matchingIndex = vaults.findIndex((v) => {
-      const vp = normalize(v.path);
-      return normPath === vp || normPath.startsWith(vp + "/");
-    });
+    const matchingIndex = vaults.findIndex((v) => isPathInsideVault(filePath, v.path));
     if (matchingIndex >= 0) {
       setActiveVaultIndex(matchingIndex);
     }
 
     handleSelectFile(filePath);
-  }, [vaults, handleSelectFile, expandOutlineOnOpen]);
+  }, [vaults, handleSelectFile, expandOutlineOnOpen, sidebarTabPlacement]);
 
   // 拉取并处理外部打开文件队列（双击 .md 文件），返回是否处理了文件。
   // 后端不再定时发事件，改为前端就绪后拉取，彻底消除事件竞态导致的"打开为空"问题
@@ -1827,18 +1872,14 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
       }
       isNavigatingHistoryRef.current = false;
 
-      // 更新最近访问文件列表
-      const activeVault = activeVaultIndex >= 0 ? vaults[activeVaultIndex] : null;
-      if (activeVault) {
-        setRecentFiles((prev) => {
-          const vaultPath = activeVault.path;
-          const existingRecent = prev[vaultPath] || [];
-          // 移除已存在的该文件（避免重复）
-          const filtered = existingRecent.filter((p) => p !== path);
-          // 将新文件添加到最前面
-          const updated = [path, ...filtered].slice(0, MAX_RECENT_FILES);
-          return { ...prev, [vaultPath]: updated };
-        });
+      // 更新最近访问文件列表（仓外文件记入全局桶）
+      pushRecentFile(path, vaultPathForFile(path));
+
+      // 仓外单文件：跟随「打开文件时展开大纲」设置，展开大纲所在的那一侧栏
+      if (!vaultPathForFile(path) && expandOutlineOnOpen) {
+        if (sidebarTabPlacement.outline === "left") setSidebarOpen(true);
+        else setRightSidebarOpen(true);
+        setOutlineTrigger((n) => n + 1);
       }
 
       // 文件打开完成后：延迟 focus 到目标编辑器窗格（等 React re-render 完，handle 已注册到 paneHandlesRef）
@@ -1855,7 +1896,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     } catch (e) {
       console.error(t("app.error.openFileFailed"), e);
     }
-  }, [activeVaultIndex, vaults, t, updateBuffer]);
+  }, [activeVaultIndex, vaults, t, updateBuffer, pushRecentFile, expandOutlineOnOpen, vaultPathForFile, sidebarTabPlacement]);
   // 转发 openFile 给在上方定义的 handleSelectFile（避免“先使用后声明”）
   openFileRef.current = openFile;
 
@@ -2020,12 +2061,52 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     }
   }, []);
 
+  // 打开仓外源文件：直接读写原文件，不复制副本、不登记导入映射。
+  // 多选时逐个开新窗口（当前窗口保持不动）。
+  const handleOpenExternalFile = useCallback(async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        title: t("app.dialog.openFileTitle"),
+        filters: [
+          { name: t("app.dialog.filterMarkdown"), extensions: MARKDOWN_EXTS },
+          { name: t("app.dialog.filterText"), extensions: EDITABLE_EXTS },
+        ],
+      });
+      if (!selected) return;
+      const paths = (Array.isArray(selected) ? selected : [selected]).filter(
+        (p): p is string => typeof p === "string",
+      );
+      for (const filePath of paths) {
+        await handleNewWindow(filePath);
+      }
+    } catch (err) {
+      console.error(t("app.error.openFileFailed"), err);
+    }
+  }, [handleNewWindow, t]);
+
   // 默认工作目录：当前文件所在目录 > 仓库根目录 > 空串。
   const defaultCwd = useCallback((): string => {
     if (fileName) return fileName.replace(/[/\\][^/\\]*$/, "");
     if (activeVaultIndex >= 0 && vaults[activeVaultIndex]) return vaults[activeVaultIndex].path;
     return "";
   }, [fileName, activeVaultIndex, vaults]);
+
+  // 打开仓外源文件快捷键（默认 Ctrl+Alt+O）；Ctrl+O 的「快速打开（仓库内）」语义保持不变
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Vim 冲突：Ctrl+O=跳转列表上一个位置，normal 态让渡
+      if (vimShouldTakeOver(e) && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") return;
+      const shortcuts = loadShortcuts();
+      if (!matchShortcut(e, getShortcutKeys(shortcuts, "open-external-file"))) return;
+      e.preventDefault();
+      setCommandPaletteOpen(false);
+      handleOpenExternalFile();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleOpenExternalFile, vimShouldTakeOver]);
 
   // 创建一个终端面板（生成 terminalId 并登记），但不涉及布局插入。
   const makeTerminalPane = useCallback((cwd: string): Pane => {
@@ -2182,16 +2263,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
       // 匿名统计 + 更新最近访问文件列表
       track(ANALYTICS_EVENTS.FILE_OPEN);
       trackPageview("/file");
-      const activeVault = activeVaultIndex >= 0 ? vaults[activeVaultIndex] : null;
-      if (activeVault) {
-        setRecentFiles((prev) => {
-          const vaultPath = activeVault.path;
-          const existingRecent = prev[vaultPath] || [];
-          const filtered = existingRecent.filter((p) => p !== path);
-          const updated = [path, ...filtered].slice(0, MAX_RECENT_FILES);
-          return { ...prev, [vaultPath]: updated };
-        });
-      }
+      pushRecentFile(path, vaultPathForFile(path));
       // 延迟聚焦目标窗格的编辑器，等待挂载
       setTimeout(() => {
         paneHandlesRef.current[focusPaneId]?.focus();
@@ -2199,7 +2271,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     } catch (e) {
       console.error(t("app.error.openFileFailed"), e);
     }
-  }, [fileName, isCurrentFileMarkdown, canvasFilePath, previewFilePath, activeVaultIndex, vaults, t]);
+  }, [fileName, isCurrentFileMarkdown, canvasFilePath, previewFilePath, activeVaultIndex, vaults, t, pushRecentFile, vaultPathForFile]);
 
   // QuickOpen 的 Ctrl+\ / Ctrl+-：
   // 把选中文件在激活编辑器的指定方向（Ctrl+\ 右侧 / Ctrl+- 下方）分屏打开，
@@ -2246,16 +2318,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
       // 匿名统计 + 更新最近访问文件列表
       track(ANALYTICS_EVENTS.FILE_OPEN);
       trackPageview("/file");
-      const activeVault = activeVaultIndex >= 0 ? vaults[activeVaultIndex] : null;
-      if (activeVault) {
-        setRecentFiles((prev) => {
-          const vaultPath = activeVault.path;
-          const existingRecent = prev[vaultPath] || [];
-          const filtered = existingRecent.filter((p) => p !== path);
-          const updated = [path, ...filtered].slice(0, MAX_RECENT_FILES);
-          return { ...prev, [vaultPath]: updated };
-        });
-      }
+      pushRecentFile(path, vaultPathForFile(path));
 
       // 延迟聚焦新窗格编辑器，等待挂载
       setTimeout(() => {
@@ -2264,7 +2327,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     } catch (e) {
       console.error(t("app.error.openFileFailed"), e);
     }
-  }, [canvasFilePath, previewFilePath, activeVaultIndex, vaults, t]);
+  }, [canvasFilePath, previewFilePath, activeVaultIndex, vaults, t, pushRecentFile, vaultPathForFile]);
 
   // 关闭指定窗格：从布局树移除对应 leaf，并压缩只剩 1 个孩子的空组。
   // 若为激活窗格，焦点切到相邻 leaf；同时清理孤儿缓冲。至少保留一个窗格。
@@ -3406,6 +3469,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     // 文件操作
     { id: "save", label: t("app.command.labels.saveFile"), category: t("app.command.categories.file"), shortcut: getCommandShortcut("save"), action: handleSave },
     { id: "open", label: t("app.command.labels.openFile"), category: t("app.command.categories.file"), shortcut: getCommandShortcut("open"), action: () => { if (activeVaultIndex >= 0) setQuickOpenOpen(true); } },
+    { id: "open-external-file", label: t("app.command.labels.openExternalFile"), category: t("app.command.categories.file"), shortcut: getCommandShortcut("open-external-file"), action: handleOpenExternalFile },
     { id: "new-window", label: t("app.command.labels.openInNewWindow"), category: t("app.command.categories.file"), action: () => { if (fileName) handleNewWindow(fileName); } },
 
     // 编辑操作
@@ -3505,7 +3569,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     { id: "settings-image", label: t("app.command.labels.imageSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.imageSettings").split(", "), action: () => openSettings("image") },
     { id: "settings-canvas", label: t("app.command.labels.canvasSettings"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.canvasSettings").split(", "), action: () => openSettings("canvas") },
     { id: "settings-about", label: t("app.command.labels.about"), category: t("app.command.categories.settings"), aliases: t("app.command.aliases.about").split(", "), action: () => openSettings("about") },
-  ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish, openSettings]);
+  ], [t, handleSave, activeVaultIndex, fileName, handleNewWindow, handleOpenExternalFile, handleSidebarToggle, cycleMode, toggleTypewriterMode, handleMinimize, handleToggleMaximize, handleClose, setViewMode, setActiveMode, viewMode, vaults, handleCopyAsMarkdown, content, getGraphSettings, handleOpenXhs, handlePublish, openSettings]);
 
   return (
     <div className="app">
@@ -4109,6 +4173,32 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
                     <span>+</span>
                     <kbd>P</kbd>
                   </div>
+                  <div className="welcome-actions">
+                    <button className="welcome-action-btn" onClick={handleOpenExternalFile}>
+                      {t("app.welcome.openFile")}
+                    </button>
+                    <span className="welcome-action-hint">{t("app.welcome.openFileHint")}</span>
+                  </div>
+                  {mergedRecentFiles.length > 0 && (
+                    <div className="welcome-recent">
+                      <div className="welcome-recent-title">{t("app.welcome.recentFiles")}</div>
+                      {mergedRecentFiles.map((recentPath) => (
+                        <button
+                          key={recentPath}
+                          className="welcome-recent-item"
+                          title={recentPath}
+                          onClick={() => handleSelectFile(recentPath)}
+                        >
+                          <span className="welcome-recent-name">
+                            {recentPath.split(/[/\\]/).pop() || recentPath}
+                          </span>
+                          <span className="welcome-recent-dir">
+                            {recentPath.replace(/[/\\][^/\\]*$/, "")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : isCurrentFileMarkdown || layoutHasTerminal ? (
@@ -4307,7 +4397,7 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         <QuickOpen
           vault={activeVaultIndex >= 0 ? vaults[activeVaultIndex] : null}
           vaults={vaults}
-          recentFiles={activeVaultIndex >= 0 ? recentFiles[vaults[activeVaultIndex].path] || [] : []}
+          recentFiles={mergedRecentFiles}
           currentFilePath={fileName}
           onSelect={(path) => {
             setQuickOpenOpen(false);

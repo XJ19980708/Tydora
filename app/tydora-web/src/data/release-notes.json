@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14",
+  "generatedAt": "2026-09-17",
   "current": "0.2.8",
   "versions": [
     {
@@ -65,6 +65,10 @@
             {
               "text": "合并上游后重建 Cargo.lock",
               "hash": "b9f3ea7"
+            },
+            {
+              "text": "合并上游后重新生成更新说明数据",
+              "hash": "e52cebf"
             }
           ]
         }

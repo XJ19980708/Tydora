@@ -677,9 +677,14 @@
     },
     "welcome": {
       "openFile": "打开文件",
+      "openFileHint": "直接编辑原文件，不复制副本",
+      "recentFiles": "最近打开",
       "commandPalette": "命令面板"
     },
     "dialog": {
+      "openFileTitle": "打开文件",
+      "filterMarkdown": "Markdown",
+      "filterText": "文本文件",
       "saveFile": "保存文件",
       "saveFileMessage": "文件 \"{{name}}\" 尚未保存，是否先保存？",
       "save": "保存",
@@ -742,6 +747,7 @@
       "labels": {
         "saveFile": "保存文件",
         "openFile": "打开文件",
+        "openExternalFile": "打开文件（不导入）",
         "openInNewWindow": "新窗口打开",
         "undo": "撤销",
         "redo": "重做",

@@ -677,9 +677,14 @@
     },
     "welcome": {
       "openFile": "Open File",
+      "openFileHint": "Edit the original file directly, no copy",
+      "recentFiles": "Recent",
       "commandPalette": "Command Palette"
     },
     "dialog": {
+      "openFileTitle": "Open File",
+      "filterMarkdown": "Markdown",
+      "filterText": "Text Files",
       "saveFile": "Save File",
       "saveFileMessage": "File \"{{name}}\" has unsaved changes. Save it?",
       "save": "Save",
@@ -743,6 +748,7 @@
       "labels": {
         "saveFile": "Save File",
         "openFile": "Open File",
+        "openExternalFile": "Open File (No Import)",
         "openInNewWindow": "Open in New Window",
         "undo": "Undo",
         "redo": "Redo",
