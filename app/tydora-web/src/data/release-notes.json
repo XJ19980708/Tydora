@@ -1,15 +1,60 @@
 {
   "generatedAt": "2026-09-17",
-  "current": "0.2.8",
+  "current": "0.2.9",
   "versions": [
     {
-      "version": "0.2.8",
-      "date": "2026-09-14",
-      "released": false,
+      "version": "0.3.0",
+      "date": "2026-09-17",
+      "released": true,
       "groups": [
         {
           "group": "feat",
           "items": [
+            {
+              "text": "implement external markdown patching and optimize markdown parsing rules",
+              "hash": "3a5d0d7"
+            },
+            {
+              "text": "add system package management messages for update failures",
+              "hash": "c014f04"
+            },
+            {
+              "text": "添加界面缩放功能，支持自动和手动设置，优化用户体验",
+              "hash": "67b4b85"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "更新版本号至 0.3.0，反映最新更改",
+              "hash": "e884b15"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.9",
+      "date": "2026-09-15",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "add Table of Contents (TOC) functionality and improve editor features",
+              "hash": "db84468"
+            },
+            {
+              "text": "添加文件类型图标显示功能，支持在文件树中显示不同类型的文件图标",
+              "hash": "b62b0e9"
+            },
+            {
+              "text": "add welcome vault functionality with language-specific document filtering",
+              "hash": "2171df6"
+            },
             {
               "text": "支持导入 Markdown 文档与整个文件夹树",
               "hash": "411b505"
@@ -21,12 +66,32 @@
             {
               "text": "导入镜像支持手动重新同步",
               "hash": "a8044e9"
+            },
+            {
+              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
+              "hash": "11ce405"
             }
           ]
         },
         {
           "group": "fix",
           "items": [
+            {
+              "text": "优化滚动条样式，仅在滚动时显示滑块，移除悬停触发",
+              "hash": "3a29fbb"
+            },
+            {
+              "text": "修改菜单密度设置为正常，优化用户界面体验",
+              "hash": "8fb5c51"
+            },
+            {
+              "text": "更新现代暗色主题的颜色变量，优化视觉效果",
+              "hash": "04ed0d2"
+            },
+            {
+              "text": "修复文档标题格式，确保一致性",
+              "hash": "b6f6512"
+            },
             {
               "text": "修复任务管理器窗口图标显示噪点花纹",
               "hash": "acaf468"
@@ -55,6 +120,10 @@
           "group": "chore",
           "items": [
             {
+              "text": "更新版本号至 0.2.9，反映最新更改",
+              "hash": "2f84ec5"
+            },
+            {
               "text": "替换应用 logo 为自定义图标",
               "hash": "c062fb6"
             },
@@ -69,6 +138,10 @@
             {
               "text": "合并上游后重新生成更新说明数据",
               "hash": "e52cebf"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock 与 capability schema",
+              "hash": "e6022cf"
             }
           ]
         }
