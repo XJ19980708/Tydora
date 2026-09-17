@@ -5,7 +5,7 @@ import { ask, open } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { useTheme, type ThemeName, type ThemePair } from "./themes";
 import { loadImageSettings, saveImageSettings, type ImageSettings, type StorageMode, type FilenameFormat } from "./services";
-import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, type UpdateInfo } from "./services";
+import { checkForUpdate, downloadAndInstall, relaunchApp, exitApp, isStoreVersion, isPortableVersion, getSystemPackageInfo, type UpdateInfo, type SystemPackageInfo } from "./services";
 import { PublishSettings } from "./publish";
 import CliMcpSettings from "./cli/CliMcpSettings";
 import { findSettingsSearchItem } from "./settings/settingsSearchIndex";
@@ -2681,10 +2681,13 @@ function AboutSettingsContent() {
   const [storeVersion, setStoreVersion] = useState(false);
   const [portableVersion, setPortableVersion] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateResult, setUpdateResult] = useState<{ available: boolean; info?: UpdateInfo } | null>(null);
+  const [updateResult, setUpdateResult] = useState<{ available: boolean; info?: UpdateInfo; error?: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
   const [analyticsEnabled, setAnalyticsState] = useState<boolean>(() => isAnalyticsEnabled());
+  const [systemPkg, setSystemPkg] = useState<SystemPackageInfo | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<string>("get_app_version").then(setVersion).catch(() => setVersion(""));
@@ -2692,18 +2695,32 @@ function AboutSettingsContent() {
     isStoreVersion().then(setStoreVersion).catch(() => setStoreVersion(false));
     // 是否为便携版：便携版走 GitHub 便携 zip 通道更新
     isPortableVersion().then(setPortableVersion).catch(() => setPortableVersion(false));
+    // 是否由系统包管理器安装：这类安装只能提示用户用包管理器更新
+    getSystemPackageInfo().then(setSystemPkg).catch(() => setSystemPkg(null));
   }, []);
 
   const handleCheckUpdate = useCallback(async () => {
     setCheckingUpdate(true);
     setUpdateResult(null);
+    setUpdateError(null);
     try {
       const info = await checkForUpdate();
       setUpdateResult(info ? { available: true, info } : { available: false });
-    } catch {
-      setUpdateResult({ available: false });
+    } catch (e) {
+      // 检查失败也要让用户看到原因，不能静默显示「已是最新版本」
+      setUpdateResult({ available: false, error: e instanceof Error ? e.message : String(e) });
     }
     setCheckingUpdate(false);
+  }, []);
+
+  const handleCopyCommand = useCallback(async (command: string) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopiedCommand(true);
+      setTimeout(() => setCopiedCommand(false), 2000);
+    } catch {
+      setUpdateError(command);
+    }
   }, []);
 
   const handleDownload = useCallback(async () => {
@@ -2714,6 +2731,7 @@ function AboutSettingsContent() {
       if (!ok) return;
     }
     setDownloading(true);
+    setUpdateError(null);
     setDownloadProgress({ downloaded: 0, total: null });
     try {
       await downloadAndInstall((downloaded, total) => {
@@ -2730,9 +2748,14 @@ function AboutSettingsContent() {
       }
     } catch (e) {
       console.error(`${t("settings.about.updateFailed")}`, e);
+      setUpdateError(e instanceof Error ? e.message : String(e));
       setDownloading(false);
     }
   }, [updateResult, t, storeVersion, portableVersion]);
+
+  // 系统包管理器安装时，更新动作是「复制命令」而不是下载安装包
+  const systemUpdateCommand =
+    updateResult?.info?.installMethod === "system" ? updateResult.info.updateCommand ?? null : null;
 
   return (
     <div className="settings-section">
@@ -2767,6 +2790,15 @@ function AboutSettingsContent() {
         </div>
       )}
 
+      {systemPkg && (
+        <div className="settings-item">
+          <label className="settings-item-label">{t("settings.about.installSource")}</label>
+          <span className="settings-about-value">
+            {t("settings.about.systemPackageHint", { manager: systemPkg.packageManager })}
+          </span>
+        </div>
+      )}
+
       <div className="settings-item-vertical">
         <label className="settings-label">{t("settings.appearance.analytics")}</label>
         <div className="settings-item-inline">
@@ -2792,6 +2824,16 @@ function AboutSettingsContent() {
           <span className="settings-about-value">
             {t("settings.about.downloading")}{downloadProgress.total ? ` ${Math.round(downloadProgress.downloaded / downloadProgress.total * 100)}%` : ""}
           </span>
+        ) : systemUpdateCommand ? (
+          <div className="settings-update-command">
+            <span className="settings-update-command-hint">{t("settings.about.systemUpdateHint")}</span>
+            <div className="settings-update-command-row">
+              <code className="settings-update-command-code">{systemUpdateCommand}</code>
+              <button className="settings-button" onClick={() => handleCopyCommand(systemUpdateCommand)}>
+                {copiedCommand ? t("settings.about.copied") : t("settings.about.copyCommand")}
+              </button>
+            </div>
+          </div>
         ) : updateResult?.available && updateResult.info ? (
           <button className="settings-button" onClick={handleDownload}>
             {t("settings.about.updateTo", { version: updateResult.info.version })}
@@ -2802,10 +2844,22 @@ function AboutSettingsContent() {
             onClick={handleCheckUpdate}
             disabled={checkingUpdate}
           >
-            {checkingUpdate ? t("settings.about.checking") : updateResult && !updateResult.available ? t("settings.about.alreadyLatest") : t("settings.about.checkUpdate")}
+            {checkingUpdate
+              ? t("settings.about.checking")
+              : updateResult && !updateResult.available && !updateResult.error
+                ? t("settings.about.alreadyLatest")
+                : t("settings.about.checkUpdate")}
           </button>
         )}
       </div>
+
+      {(updateError || updateResult?.error) && (
+        <div className="settings-item">
+          <span className="settings-update-error">
+            {t("settings.about.updateFailed")} {updateError || updateResult?.error}
+          </span>
+        </div>
+      )}
 
       <div className="settings-item">
         <label className="settings-item-label">{t("settings.about.github")}</label>

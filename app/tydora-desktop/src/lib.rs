@@ -1741,6 +1741,171 @@ fn is_portable_version() -> bool {
     }
 }
 
+/// 系统包管理器安装信息（Linux 发行版包安装时使用）。
+///
+/// 内置 updater 在 Linux 上只会「原地替换当前可执行文件」
+/// （tauri-plugin-updater：`extract_path = current_exe()`），而发行版包安装的
+/// 可执行文件位于 /usr/bin（root 所有）→ 必然 EACCES 失败，且替换后还会让
+/// pacman/dpkg 的文件数据库与实际不符。因此识别出这类安装后，前端只做版本
+/// 检查，安装动作交回包管理器。
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct SystemPackageInfo {
+    /// 包管理器标识：pacman / apt / dnf / zypper / rpm
+    package_manager: String,
+    /// 拥有当前可执行文件的包名
+    package_name: String,
+    /// 建议用户执行的更新命令
+    update_command: String,
+}
+
+/// 查询当前可执行文件是否由系统包管理器安装。
+///
+/// 判断方式是「查文件归属」：包管理器只登记自己安装过的文件，
+/// 因此 AppImage、便携版、`cargo run` / `target/release` 开发环境都会返回 None，
+/// 原有的应用内更新流程不受影响。
+#[tauri::command]
+fn system_package_info() -> Option<SystemPackageInfo> {
+    #[cfg(target_os = "linux")]
+    {
+        detect_system_package()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// 执行外部命令并返回 trim 后的 stdout；命令不存在或退出码非 0 时返回 None。
+#[cfg(target_os = "linux")]
+fn run_query(cmd: &str, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new(cmd).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// 命令是否存在于 PATH 中。
+#[cfg(target_os = "linux")]
+fn command_exists(cmd: &str) -> bool {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&paths).any(|dir| dir.join(cmd).is_file())
+}
+
+/// pacman 本地数据库（/var/lib/pacman/local/<name>-<version>/desc）里是否记录了
+/// `%REPOSITORY%`。官方仓库包有该字段；AUR / 本地 makepkg 安装的包没有。
+#[cfg(target_os = "linux")]
+fn pacman_package_is_repo(name: &str, version: &str) -> bool {
+    let desc = format!("/var/lib/pacman/local/{name}-{version}/desc");
+    std::fs::read_to_string(desc)
+        .map(|s| s.contains("%REPOSITORY%"))
+        .unwrap_or(false)
+}
+
+/// 包名是否「像」一个真实包名：非空、无空白、只由 [A-Za-z0-9+._-] 组成且不以分隔符开头。
+/// 用来挡住把包管理器的错误信息（如 "dpkg-query: no path found ..."）误当成包名。
+#[cfg(target_os = "linux")]
+fn looks_like_package_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 100
+        && !name.contains(char::is_whitespace)
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '.' | '-' | '_'))
+        && !matches!(name.chars().next(), Some('-') | Some('.') | Some('+') | Some('_'))
+}
+
+/// 解析 `pacman -Qo` 输出，返回 (包名, 版本)。
+/// 正常：`/usr/bin/tydora is owned by tydora 0.2.9-1`
+/// 多包共同拥有：`… is owned by multiple packages a b`，取第一个。
+#[cfg(target_os = "linux")]
+fn parse_pacman_owner(out: &str) -> Option<(&str, &str)> {
+    let rest = out.split("is owned by ").nth(1)?;
+    let rest = rest.strip_prefix("multiple packages ").unwrap_or(rest);
+    let mut parts = rest.split_whitespace();
+    let name = parts.next()?;
+    if !looks_like_package_name(name) {
+        return None;
+    }
+    Some((name, parts.next().unwrap_or_default()))
+}
+
+/// 解析 `dpkg -S` 输出（`tydora: /usr/bin/tydora`），返回第一个拥有该文件的包名。
+/// 多包共同拥有时冒号前是逗号分隔的列表；没有「冒号 + 绝对路径」的一律视为错误信息。
+#[cfg(target_os = "linux")]
+fn parse_dpkg_owner(out: &str) -> Option<&str> {
+    let (owners, path) = out.split_once(':')?;
+    // 正常输出冒号后是文件绝对路径（多条目时按行给出，取第一行已足够）
+    if !path.trim_start().starts_with('/') {
+        return None;
+    }
+    let owner = owners.split(',').next()?.trim();
+    looks_like_package_name(owner).then_some(owner)
+}
+
+/// 解析 `rpm -q --qf '%{NAME}' -f <path>` 输出，返回第一个包名（多包共同拥有时多行）。
+#[cfg(target_os = "linux")]
+fn parse_rpm_owner(out: &str) -> Option<&str> {
+    out.lines()
+        .map(str::trim)
+        .find(|s| looks_like_package_name(s))
+}
+
+#[cfg(target_os = "linux")]
+fn detect_system_package() -> Option<SystemPackageInfo> {
+    let exe = std::env::current_exe().ok()?;
+    let exe = exe.to_string_lossy().to_string();
+
+    if let Some(out) = run_query("pacman", &["-Qo", &exe]) {
+        if let Some((name, version)) = parse_pacman_owner(&out) {
+            // 官方仓库包整库升级即可；AUR / 本地构建的包要用 AUR 助手
+            let update_command = if pacman_package_is_repo(name, version) {
+                "sudo pacman -Syu".to_string()
+            } else {
+                format!("yay -Syu {name}")
+            };
+            return Some(SystemPackageInfo {
+                package_manager: "pacman".to_string(),
+                package_name: name.to_string(),
+                update_command,
+            });
+        }
+    }
+
+    if let Some(out) = run_query("dpkg", &["-S", &exe]) {
+        if let Some(name) = parse_dpkg_owner(&out) {
+            return Some(SystemPackageInfo {
+                package_manager: "apt".to_string(),
+                package_name: name.to_string(),
+                update_command: format!("sudo apt install --only-upgrade {name}"),
+            });
+        }
+    }
+
+    if let Some(out) = run_query("rpm", &["-q", "--qf", "%{NAME}\n", "-f", &exe]) {
+        if let Some(name) = parse_rpm_owner(&out) {
+            let (manager, update_command) = if command_exists("dnf") {
+                ("dnf", format!("sudo dnf upgrade {name}"))
+            } else if command_exists("zypper") {
+                ("zypper", format!("sudo zypper update {name}"))
+            } else {
+                ("rpm", format!("sudo rpm -U {name}-<新版本>.rpm"))
+            };
+            return Some(SystemPackageInfo {
+                package_manager: manager.to_string(),
+                package_name: name.to_string(),
+                update_command,
+            });
+        }
+    }
+
+    None
+}
+
 /// 检查 GitHub 最新发布版本（便携版通道）：
 /// 当 GitHub 版本高于当前运行版本时返回更新信息（含便携 zip 下载地址），
 /// 否则返回 None。便携版不能走内置 updater（其 Windows 更新产物是 NSIS
@@ -2025,6 +2190,7 @@ pub fn run() {
             ensure_welcome_vault,
             is_store_version,
             is_portable_version,
+            system_package_info,
             check_github_update,
             check_portable_update,
             switch_to_github_update,

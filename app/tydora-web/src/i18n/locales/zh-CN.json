@@ -550,7 +550,12 @@
       "github": "GitHub",
       "visitRepo": "访问 GitHub 仓库",
       "feedback": "问题反馈",
-      "updateFailed": "更新失败:"
+      "updateFailed": "更新失败:",
+      "installSource": "安装来源",
+      "systemPackageHint": "由系统包管理器（{{manager}}）安装，更新请使用包管理器。",
+      "systemUpdateHint": "系统包管理器安装的应用无法被自身替换，请执行下面的命令更新：",
+      "copyCommand": "复制更新命令",
+      "copied": "已复制"
     },
     "vim": {
       "enable": "启用 Vim 模式",

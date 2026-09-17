@@ -1674,6 +1674,46 @@
   font-family: var(--font-mono);
 }
 
+.settings-update-command {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.settings-update-command-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.settings-update-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-update-command-code {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow-x: auto;
+  user-select: all;
+}
+
+.settings-update-error {
+  font-size: 13px;
+  color: var(--danger);
+  line-height: 1.5;
+}
+
 .settings-button {
   padding: 10px 20px;
   background: var(--accent);

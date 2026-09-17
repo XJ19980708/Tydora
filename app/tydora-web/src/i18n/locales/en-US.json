@@ -550,7 +550,12 @@
       "github": "GitHub",
       "visitRepo": "Visit GitHub Repository",
       "feedback": "Feedback",
-      "updateFailed": "Update failed:"
+      "updateFailed": "Update failed:",
+      "installSource": "Install Source",
+      "systemPackageHint": "Installed by the system package manager ({{manager}}). Use the package manager to update.",
+      "systemUpdateHint": "This install is managed by the system package manager and cannot replace its own files. Run the command below to update:",
+      "copyCommand": "Copy update command",
+      "copied": "Copied"
     },
     "vim": {
       "enable": "Enable Vim Mode",

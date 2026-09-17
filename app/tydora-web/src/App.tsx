@@ -944,6 +944,8 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateDownloading, setUpdateDownloading] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
+  const [updateCopied, setUpdateCopied] = useState(false);
+  const [updateFailed, setUpdateFailed] = useState(false);
 
   // 文件导航历史（前进/后退）
   const [fileHistory, setFileHistory] = useState<string[]>([]);
@@ -1388,6 +1390,19 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
 
   const handleUpdateDownload = useCallback(async () => {
     if (!updateInfo) return;
+    // 系统包管理器安装（Linux 的 pacman / apt / dnf ...）：
+    // 内置 updater 无法替换 /usr/bin 下的程序文件，这里只负责把更新命令交给用户
+    if (updateInfo.installMethod === "system" && updateInfo.updateCommand) {
+      try {
+        await navigator.clipboard.writeText(updateInfo.updateCommand);
+        setUpdateCopied(true);
+        setTimeout(() => setUpdateCopied(false), 2000);
+      } catch {
+        setUpdateFailed(true);
+        setTimeout(() => setUpdateFailed(false), 4000);
+      }
+      return;
+    }
     setUpdateDownloading(true);
     setUpdateProgress({ downloaded: 0, total: null });
     try {
@@ -1403,8 +1418,11 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     } catch (e) {
       console.error(t("settings.about.updateFailed"), e);
       setUpdateDownloading(false);
+      // 失败必须有可见反馈，不能只写控制台
+      setUpdateFailed(true);
+      setTimeout(() => setUpdateFailed(false), 4000);
     }
-  }, [updateInfo]);
+  }, [updateInfo, t]);
 
   // Debounced mindmap sync to avoid flooding IPC on every keystroke
   const mindmapSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3671,14 +3689,32 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
                 </svg>
               </button>
               {updateInfo && !updateDownloading && (
-                <button className="update-btn" onClick={handleUpdateDownload} title={`New version v${updateInfo.version}`}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>v{updateInfo.version}</span>
+                <button
+                  className="update-btn"
+                  onClick={handleUpdateDownload}
+                  title={
+                    updateInfo.installMethod === "system" && updateInfo.updateCommand
+                      ? `${t("settings.about.copyCommand")}: ${updateInfo.updateCommand}`
+                      : `New version v${updateInfo.version}`
+                  }
+                >
+                  {updateInfo.installMethod === "system" ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="12" height="12" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  )}
+                  <span>{updateCopied ? t("settings.about.copied") : `v${updateInfo.version}`}</span>
                 </button>
+              )}
+              {updateFailed && (
+                <span className="update-error">{t("app.update.downloadFailed")}</span>
               )}
               {updateDownloading && (
                 <div className="update-progress">
