@@ -40,8 +40,7 @@
       "codeBlockToolbarMinimal": "Floating (minimal)",
       "codeBlockToolbarClassic": "Top bar (with copy/delete)",
       "uiScale": "Interface Scale",
-      "uiScaleDesc": "Scale the UI and text automatically based on screen resolution, or set a fixed ratio.",
-      "uiScaleAuto": "Auto (follow screen resolution)",
+      "uiScaleDesc": "Adjust the overall scale of the interface and text (75% - 150%).",
       "menuDensity": "Menu Item Height",
       "menuDensityDesc": "Vertical spacing of context menus, dropdowns, and similar menus.",
       "menuDensityCompact": "Compact",
@@ -929,6 +928,8 @@
       "moveTo": "Move to...",
       "delete": "Delete",
       "copyPath": "Copy File Path",
+      "copyRelativePath": "Copy Relative Path",
+      "copyAbsolutePath": "Copy Absolute Path",
       "openLocation": "Open File Location",
       "openInTerminal": "Open in Terminal"
     },
@@ -952,7 +953,8 @@
       "removeConfirmTitle": "Remove Vault",
       "removeConfirmMessage": "Remove vault \"{{name}}\"?\nThis will not delete local files.",
       "publishWebsite": "Publish as Website",
-      "openNewVault": "Open New Vault"
+      "openNewVault": "Open New Vault",
+      "temporary": "Temporary"
     },
     "empty": {
       "noVault": "No vault opened",

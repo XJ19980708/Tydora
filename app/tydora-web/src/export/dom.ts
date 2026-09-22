@@ -292,24 +292,47 @@ function svgToPngDataUrl(svg: SVGSVGElement): Promise<{ dataUrl: string; width: 
 }
 
 /**
- * 创建导出文件顶部的应用标识 header（图标 + 名称）
+ * 创建导出文件顶部的 header：左侧文件名，右侧「创作于 Tydora」品牌角标
  */
-function createExportHeader(): HTMLElement {
+function createExportHeader(title?: string): HTMLElement {
   const header = document.createElement("div");
   header.className = "export-app-header";
   Object.assign(header.style, {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    paddingBottom: "16px",
-    marginBottom: "16px",
-    borderBottom: "1px solid var(--border, #d9ede5)",
+    justifyContent: "space-between",
+    gap: "16px",
+    paddingBottom: "12px",
+    marginBottom: "18px",
+    borderBottom: "1px solid var(--border, #e5e7eb)",
   } as CSSStyleDeclaration);
-  header.innerHTML = `
-    <img src="${appIconUrl}" alt="Tydora" style="width:32px;height:32px;flex-shrink:0;" />
-    <span style="font-size:20px;font-weight:700;color:var(--text-primary, #1f2330);letter-spacing:0.5px;">Tydora</span>
+
+  if (title) {
+    const name = document.createElement("span");
+    name.className = "export-header-title";
+    name.textContent = title;
+    // 文件名过长时省略号截断，避免挤压右侧品牌标识
+    Object.assign(name.style, {
+      flex: "1",
+      minWidth: "0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      fontSize: "14px",
+      fontWeight: "500",
+      color: "var(--text-primary, #1f2330)",
+    } as CSSStyleDeclaration);
+    header.appendChild(name);
+  }
+
+  const brand = document.createElement("span");
+  brand.style.cssText =
+    "display:flex;align-items:center;gap:6px;flex-shrink:0;";
+  brand.innerHTML = `
+    <img src="${appIconUrl}" alt="Tydora" style="width:18px;height:18px;flex-shrink:0;border-radius:4px;" />
+    <span style="font-size:14px;font-weight:400;color:var(--text-secondary, #8a8f9c);letter-spacing:0.5px;">创作于 Tydora</span>
   `;
+  header.appendChild(brand);
   return header;
 }
 
@@ -321,6 +344,7 @@ export function prepareExportElement(
   raw: HTMLElement,
   themeName: string,
   forceLightTheme = false,
+  title?: string,
 ): { container: HTMLElement; cleanup: () => void } {
   // 清理编辑器专属 DOM
   raw.removeAttribute("contenteditable");
@@ -358,8 +382,8 @@ export function prepareExportElement(
   } as CSSStyleDeclaration);
   container.setAttribute("data-theme", exportTheme);
 
-  // 在内容顶部插入应用标识 header
-  const header = createExportHeader();
+  // 在内容顶部插入导出 header（文件名 + 品牌标识）
+  const header = createExportHeader(title);
   raw.insertBefore(header, raw.firstChild);
 
   container.appendChild(raw);

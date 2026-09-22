@@ -40,8 +40,7 @@
       "codeBlockToolbarMinimal": "浮动（精简）",
       "codeBlockToolbarClassic": "顶栏（含复制/删除）",
       "uiScale": "界面缩放",
-      "uiScaleDesc": "根据屏幕分辨率自动调整界面与文字大小，也可手动指定缩放比例。",
-      "uiScaleAuto": "自动（跟随屏幕分辨率）",
+      "uiScaleDesc": "调整界面与文字的整体缩放比例（75% ~ 150%）。",
       "menuDensity": "菜单项高度",
       "menuDensityDesc": "右键菜单、下拉菜单等条目的垂直间距。",
       "menuDensityCompact": "紧凑",
@@ -928,6 +927,8 @@
       "moveTo": "移动到...",
       "delete": "删除",
       "copyPath": "复制文件路径",
+      "copyRelativePath": "复制相对路径",
+      "copyAbsolutePath": "复制绝对路径",
       "openLocation": "打开文件位置",
       "openInTerminal": "在终端打开"
     },
@@ -951,7 +952,8 @@
       "removeConfirmTitle": "移除仓库",
       "removeConfirmMessage": "确定要移除仓库 \"{{name}}\" 吗？\n此操作不会删除本地文件。",
       "publishWebsite": "发布为网站",
-      "openNewVault": "打开新仓库"
+      "openNewVault": "打开新仓库",
+      "temporary": "临时"
     },
     "empty": {
       "noVault": "尚未打开仓库",

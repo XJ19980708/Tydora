@@ -1059,12 +1059,19 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
   }, [moreMenuOpen]);
 
   // Persist vaults
+  // 临时仓库（双击打开仓库外 .md 文件时挂载的目录）不持久化：关闭软件后不保留，
+  // 重启后回到"未记录该仓库"的状态
   useEffect(() => {
-    localStorage.setItem(VAULTS_KEY, JSON.stringify(vaults));
+    const persisted = vaults.filter((v) => !v.temporary);
+    localStorage.setItem(VAULTS_KEY, JSON.stringify(persisted));
   }, [vaults]);
   useEffect(() => {
+    // 活动仓库是临时仓库时不写入：保留上次真实仓库的记录，重启后仍恢复它
+    // （临时仓库本身不持久化，重启不记录其路径）
+    const active = activeVaultIndex >= 0 ? vaults[activeVaultIndex] : undefined;
+    if (active?.temporary) return;
     localStorage.setItem(ACTIVE_VAULT_KEY, String(activeVaultIndex));
-  }, [activeVaultIndex]);
+  }, [activeVaultIndex, vaults]);
 
   // 监听管理仓库窗口的变更事件（实时同步）
   useEffect(() => {
@@ -1087,6 +1094,27 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
       }
     }
   }, [initialVaultPath, vaults]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 路径式激活：临时仓库/欢迎仓库等异步注入场景下，先记下目标仓库路径，
+  // 等 vaults 更新到位后再按下标激活，避免与异步流程竞态导致激活错位
+  const [pendingActiveVaultPath, setPendingActiveVaultPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingActiveVaultPath) return;
+    const index = vaults.findIndex((v) => {
+      const vp = v.path.replace(/[\\/]+$/, "");
+      return vp === pendingActiveVaultPath;
+    });
+    if (index >= 0 && index !== activeVaultIndex) {
+      setActiveVaultIndex(index);
+    }
+  }, [pendingActiveVaultPath, vaults, activeVaultIndex]);
+
+  // 兜底：仓库列表变化（如临时仓库被"管理仓库"同步事件覆盖）后活动下标越界 → 回到未选择
+  useEffect(() => {
+    if (activeVaultIndex >= vaults.length) {
+      setActiveVaultIndex(-1);
+    }
+  }, [vaults, activeVaultIndex]);
 
   // ── 首次启动：物化并自动打开"Tydora 介绍"仓库 ──────────────────────
   // 仅执行一次（localStorage 标记）；已有仓库的老用户只物化文档文件，不注入仓库。
@@ -1112,9 +1140,9 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
         if (vaults.length > 0) { finish(); return; }
         const lang = i18n.language?.startsWith("zh") ? "zh-CN" : "en-US";
         const vaultName = lang === "zh-CN" ? "Tydora 介绍" : "Tydora Introduction";
-        const newVaults = [...vaults, { name: vaultName, path: dir }];
-        setVaults(newVaults);
-        setActiveVaultIndex(newVaults.length - 1);
+        // 函数式更新：避免与临时仓库挂载（双击打开外部文件）等异步流程竞态时互相覆盖
+        setVaults((prev) => [...prev, { name: vaultName, path: dir }]);
+        setPendingActiveVaultPath(dir.replace(/[\\/]+$/, ""));
         // 等仓库状态落地后再打开欢迎文档
         const sep = navigator.platform?.toLowerCase().includes("win") ? "\\" : "/";
         const entry = lang === "zh-CN" ? "欢迎.md" : "Welcome.md";
@@ -1806,6 +1834,24 @@ function App({ initialFilePath, initialVaultPath }: { initialFilePath?: string |
     const matchingIndex = vaults.findIndex((v) => isPathInsideVault(filePath, v.path));
     if (matchingIndex >= 0) {
       setActiveVaultIndex(matchingIndex);
+    } else {
+      // 文件不在任何已注册仓库内：把其所在目录挂载为「临时仓库」，
+      // 文件树展示该目录结构；temporary 标记使其不写入持久化，
+      // 关闭软件后不保留（重启不记录该路径）。同一目录复用，不同目录则替换。
+      const sepIdx = Math.max(filePath.lastIndexOf("\\"), filePath.lastIndexOf("/"));
+      const dirPath = sepIdx > 0 ? filePath.slice(0, sepIdx) : filePath;
+      const normalize = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "");
+      const normDir = normalize(dirPath);
+      setVaults((prev) => {
+        const existingTemp = prev.find((v) => v.temporary);
+        if (existingTemp && normalize(existingTemp.path) === normDir) return prev;
+        const dirName = dirPath.split(/[\\/]/).filter(Boolean).pop() || dirPath;
+        const withoutTemp = prev.filter((v) => !v.temporary);
+        return [...withoutTemp, { name: dirName, path: dirPath, temporary: true }];
+      });
+      setPendingActiveVaultPath(normDir);
+      // 挂载了临时仓库：展开侧栏让用户直接看到该目录的文件树
+      setSidebarOpen(true);
     }
 
     handleSelectFile(filePath);

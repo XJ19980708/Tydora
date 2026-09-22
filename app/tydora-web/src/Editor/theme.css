@@ -1507,9 +1507,12 @@ html.platform-macos .tiptap-editor .tiptap {
 
 /* Frontmatter / metadata 块
  * 勿用 overflow:hidden / clip-path + border-radius：macOS WKWebView 跨块选区后会留下幽灵高亮。
- * 圆角只靠 border-radius（背景会随圆角绘制）；结构见 Frontmatter NodeView（扁平，无 pre）。 */
+ * 圆角只靠 border-radius（背景会随圆角绘制）；结构见 Frontmatter NodeView（扁平，无 pre）。
+ * .tiptap-export-content：导出时的编辑器 DOM 克隆（无 .tiptap-editor 祖先），样式需一并覆盖。 */
 .tiptap-editor [data-type="frontmatter"],
-.tiptap-editor .frontmatter-node {
+.tiptap-editor .frontmatter-node,
+.tiptap-export-content [data-type="frontmatter"],
+.tiptap-export-content .frontmatter-node {
   background: var(--metadata-bg, var(--bg-secondary, #f5f5f5));
   border: 1px solid var(--metadata-border, var(--border, #e0e0e0));
   border-radius: var(--radius-metadata, 8px);
@@ -1543,7 +1546,10 @@ html.platform-macos .tiptap-editor .frontmatter-node {
 .tiptap-editor .frontmatter-node .frontmatter-content,
 .tiptap-editor [data-type="frontmatter"] > code,
 .tiptap-editor [data-type="frontmatter"] pre,
-.tiptap-editor [data-type="frontmatter"] pre code {
+.tiptap-editor [data-type="frontmatter"] pre code,
+.tiptap-export-content [data-type="frontmatter"] .frontmatter-content,
+.tiptap-export-content .frontmatter-node .frontmatter-content,
+.tiptap-export-content [data-type="frontmatter"] > code {
   display: block;
   margin: 0;
   padding: 12px 16px;

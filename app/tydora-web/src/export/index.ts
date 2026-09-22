@@ -2,6 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
+import { parseColor } from "../themes/colorUtils";
 import {
   collectDocumentCSS,
   inlineImages,
@@ -45,6 +46,14 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_").trim() || "document";
 }
 
+/** 判断背景色是否为浅色（用于决定 PDF 导出是否强制白底） */
+function isLightBackgroundColor(color: string): boolean {
+  const { r, g, b, a } = parseColor(color);
+  if (a < 0.5) return true; // 近乎透明的背景按白纸对待
+  // ITU-R BT.601 感知亮度，>= 0.5 视为浅色
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 >= 0.5;
+}
+
 function dataUrlToUint8(dataUrl: string): Uint8Array {
   const base64 = dataUrl.split(",")[1] || "";
   const bin = atob(base64);
@@ -67,15 +76,23 @@ export async function buildExportArtifact(format: ExportFormat, ctx: ExportConte
   const { buildHtmlDoc, buildWechatHtml, exportPdfBytes, renderToPng } = await import("./exporters");
 
   // Word 导出固定使用浅色主题，避免暗色主题下文字/背景异常
-  const { container, cleanup } = prepareExportElement(raw, ctx.themeName, format === "docx");
+  const { container, cleanup } = prepareExportElement(raw, ctx.themeName, format === "docx", ctx.title);
   try {
     // 内联本地/远程图片，使产物自包含
     await inlineImages(raw);
 
     const css = collectDocumentCSS();
-    const bg = getComputedStyle(container).backgroundColor || "#ffffff";
+    let bg = getComputedStyle(container).backgroundColor || "#ffffff";
+    // PDF 是纸面媒介：浅色主题强制白底，避免主题底色（淡绿/淡紫等）被带入 PDF；
+    // 深色主题保留原底色，否则浅色文字在白底上不可读
+    let previewPageBackground: string | undefined;
+    if (format === "pdf" && isLightBackgroundColor(bg)) {
+      container.style.background = "#ffffff";
+      bg = "#ffffff";
+      previewPageBackground = "#ffffff";
+    }
     // docx 导出时 forceLightTheme 已确保底层 DOM 为浅色背景，预览 HTML 可沿用用户所选主题
-    const htmlDoc = buildHtmlDoc(raw, css, ctx.themeName, ctx.title);
+    const htmlDoc = buildHtmlDoc(raw, css, ctx.themeName, ctx.title, { pageBackground: previewPageBackground });
 
     switch (format) {
       case "html":

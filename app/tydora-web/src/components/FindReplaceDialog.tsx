@@ -64,19 +64,27 @@ export default function FindReplaceDialog({ editorHandle, mode: initialMode, onC
 
   // Navigate to next match
   const goToNext = useCallback(() => {
-    if (matches.length === 0) return;
-    const next = (currentIndex + 1) % matches.length;
+    if (!editorHandle || matches.length === 0) return;
+    // 导航前按当前文档重算匹配：搜索结果缓存的位置在文档变化后
+    // （继续输入、外部更新、切换文件）会失效，避免命中过期位置
+    const fresh = editorHandle.findMatches(query);
+    if (fresh.length > 0) setMatches(fresh);
+    const list = fresh.length > 0 ? fresh : matches;
+    const next = (currentIndex + 1) % list.length;
     setCurrentIndex(next);
-    editorHandle?.selectAndScroll(matches[next].from, matches[next].to);
-  }, [matches, currentIndex, editorHandle]);
+    editorHandle.selectAndScroll(list[next].from, list[next].to);
+  }, [matches, currentIndex, editorHandle, query]);
 
   // Navigate to previous match
   const goToPrev = useCallback(() => {
-    if (matches.length === 0) return;
-    const prev = (currentIndex - 1 + matches.length) % matches.length;
+    if (!editorHandle || matches.length === 0) return;
+    const fresh = editorHandle.findMatches(query);
+    if (fresh.length > 0) setMatches(fresh);
+    const list = fresh.length > 0 ? fresh : matches;
+    const prev = (currentIndex - 1 + list.length) % list.length;
     setCurrentIndex(prev);
-    editorHandle?.selectAndScroll(matches[prev].from, matches[prev].to);
-  }, [matches, currentIndex, editorHandle]);
+    editorHandle.selectAndScroll(list[prev].from, list[prev].to);
+  }, [matches, currentIndex, editorHandle, query]);
 
   // Replace current match
   const replaceCurrent = useCallback(() => {

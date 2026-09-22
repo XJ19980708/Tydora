@@ -43,7 +43,7 @@ import {
   normalizeMenuDensity,
   type MenuDensity,
 } from "./utils/menuDensity";
-import { applyUiScaleFromSettings } from "./utils/uiScale";
+import { applyUiScaleFromSettings, resolveUiScale } from "./utils/uiScale";
 import shortcutsConfig from "./config/shortcuts.json";
 import { formatShortcutKey, matchShortcut, loadShortcuts, getShortcutKeys, resolveSavedKeys } from "./Editor/shortcuts";
 import { isAnalyticsEnabled, setAnalyticsEnabled, track, trackPageview, ANALYTICS_EVENTS } from "./analytics";
@@ -169,7 +169,7 @@ export const DEFAULT_GENERAL: GeneralSettings = {
   expandOutlineOnOpen: true,
   codeBlockToolbarStyle: "minimal",
   menuDensity: "normal",
-  uiScale: "auto",
+  uiScale: 1,
   sidebarTabPlacement: {
     files: "left",
     search: "left",
@@ -478,6 +478,37 @@ function GeneralSettingsContent({
 }) {
   const { t } = useTranslation();
 
+  // 当前生效缩放百分比（兼容旧数据存的 "auto"：显示换算后的具体比例，调整后固化为数字）
+  const scalePercent = Math.round(resolveUiScale({ uiScale: settings.uiScale }) * 100);
+  // 步进 5%：对旧的 5% 网格外值（如旧 auto 换算出的 103%）就近吸附到网格
+  const stepScale = (dir: 1 | -1) => {
+    const raw = dir > 0
+      ? Math.ceil((scalePercent + 1) / 5) * 5
+      : Math.floor((scalePercent - 1) / 5) * 5;
+    onChange({ ...settings, uiScale: Math.min(150, Math.max(75, raw)) / 100 });
+  };
+
+  // 直接输入数字修改：编辑态暂存输入内容，失焦 / Enter 提交，Esc 取消
+  const [scaleInput, setScaleInput] = useState<string | null>(null);
+  const scaleInputCancelledRef = useRef(false);
+  const commitScaleInput = () => {
+    if (scaleInputCancelledRef.current) {
+      scaleInputCancelledRef.current = false;
+      setScaleInput(null);
+      return;
+    }
+    if (scaleInput !== null && scaleInput.trim() !== "") {
+      const n = Math.round(Number(scaleInput.replace(/[^\d.]/g, "")));
+      if (Number.isFinite(n) && n > 0) {
+        const clamped = Math.min(150, Math.max(75, n));
+        if (clamped !== scalePercent) {
+          onChange({ ...settings, uiScale: clamped / 100 });
+        }
+      }
+    }
+    setScaleInput(null);
+  };
+
   return (
     <div className="canvas-settings-page">
       <div className="canvas-settings-card">
@@ -486,24 +517,49 @@ function GeneralSettingsContent({
             <span className="canvas-settings-row-title">{t("settings.appearance.uiScale")}</span>
             <span className="canvas-settings-row-desc">{t("settings.appearance.uiScaleDesc")}</span>
           </div>
-          <SettingsSelect
-            value={String(settings.uiScale ?? "auto")}
-            onChange={(v) =>
-              onChange({
-                ...settings,
-                uiScale: v === "auto" ? "auto" : Number(v),
-              })
-            }
-            options={[
-              { value: "auto", label: t("settings.appearance.uiScaleAuto") },
-              { value: "0.75", label: "75%" },
-              { value: "0.85", label: "85%" },
-              { value: "1", label: "100%" },
-              { value: "1.1", label: "110%" },
-              { value: "1.25", label: "125%" },
-              { value: "1.5", label: "150%" },
-            ]}
-          />
+          <div className="canvas-settings-row-control">
+            <div className="ui-scale-stepper">
+              <button
+                type="button"
+                className="ui-scale-stepper-btn"
+                aria-label="-"
+                disabled={scalePercent <= 75}
+                onClick={() => stepScale(-1)}
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="ui-scale-stepper-value ui-scale-stepper-input"
+                value={scaleInput ?? `${scalePercent}%`}
+                onChange={(e) => setScaleInput(e.target.value)}
+                onFocus={(e) => {
+                  // 进入编辑态显示纯数字并全选，方便直接键入
+                  setScaleInput(String(scalePercent));
+                  requestAnimationFrame(() => e.target.select());
+                }}
+                onBlur={commitScaleInput}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  } else if (e.key === "Escape") {
+                    scaleInputCancelledRef.current = true;
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="ui-scale-stepper-btn"
+                aria-label="+"
+                disabled={scalePercent >= 150}
+                onClick={() => stepScale(1)}
+              >
+                +
+              </button>
+            </div>
+          </div>
         </div>
         <div className="canvas-settings-row">
           <div className="canvas-settings-row-label">

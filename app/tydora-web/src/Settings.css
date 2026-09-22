@@ -2517,6 +2517,74 @@
   min-width: 20px;
 }
 
+/* ── 界面缩放步进器（− 100% +） ── */
+.ui-scale-stepper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 28px;
+}
+
+.ui-scale-stepper-btn {
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #1f2330);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ui-scale-stepper-btn:hover:not(:disabled) {
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.ui-scale-stepper-btn:active:not(:disabled) {
+  background: var(--border, #e0e0e0);
+}
+
+.ui-scale-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ui-scale-stepper-value {
+  min-width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-left: 1px solid var(--border, #e0e0e0);
+  border-right: 1px solid var(--border, #e0e0e0);
+  color: var(--text-primary, #1f2330);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* 可编辑数字输入（覆盖 span 展示样式） */
+input.ui-scale-stepper-input {
+  width: 52px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border, #e0e0e0);
+  border-right: 1px solid var(--border, #e0e0e0);
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  text-align: center;
+  padding: 0 6px;
+  height: auto;
+  cursor: text;
+  user-select: text;
+}
+
 /* ── Slider ── */
 .canvas-settings-slider {
   -webkit-appearance: none;

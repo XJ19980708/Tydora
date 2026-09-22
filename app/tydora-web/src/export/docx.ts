@@ -538,6 +538,43 @@ function imageBlock(el: HTMLElement): Paragraph | null {
   });
 }
 
+/** frontmatter 元数据块 → METADATA 标签 + 等宽灰底段落（与编辑器中的展示一致） */
+function frontmatterBlock(el: HTMLElement): Block[] {
+  // NodeView 结构：div.frontmatter-node > div.frontmatter-label + code.frontmatter-content
+  const code = el.querySelector("code");
+  const text = (code?.textContent ?? el.textContent ?? "").replace(/^\n+|\n+$/g, "");
+  if (!text.trim()) return [];
+
+  const blocks: Block[] = [];
+
+  // 标签条
+  blocks.push(new Paragraph({
+    children: [
+      new TextRun({ text: "METADATA", bold: true, font: CODE_FONT, size: 14, color: "6B7280" }),
+    ],
+    spacing: { before: 160, after: 20 },
+  }));
+
+  // YAML 内容：等宽 + 灰底 + 左侧竖线，按行保留换行
+  const lines = text.split("\n");
+  const children: TextRun[] = [];
+  lines.forEach((line, idx) => {
+    if (idx > 0) children.push(new TextRun({ break: 1 }));
+    children.push(
+      new TextRun({ text: line || " ", font: CODE_FONT, size: CODE_SIZE, color: BODY_COLOR }),
+    );
+  });
+  blocks.push(new Paragraph({
+    children,
+    spacing: { after: 160 },
+    shading: { type: ShadingType.CLEAR, fill: CODE_BG },
+    indent: { left: 360 },
+    border: { left: { style: BorderStyle.SINGLE, size: 6, color: "C7CDD8" } },
+  }));
+
+  return blocks;
+}
+
 /* ------------------------------------------------------------------ */
 /*  元素分发器                                                          */
 /* ------------------------------------------------------------------ */
@@ -569,8 +606,8 @@ function elementToBlocks(el: Element): Block[] {
     const dataType = el.getAttribute("data-type") || "";
     const cls = (el as HTMLElement).className || "";
 
-    // frontmatter：元数据块，不导出到文档正文中
-    if (dataType === "frontmatter") return [];
+    // frontmatter：元数据块，按 METADATA 卡片样式导出到文档正文
+    if (dataType === "frontmatter") return frontmatterBlock(el as HTMLElement);
 
     // mermaid 图表节点：提取栅格化后的 <img> 作为独立图片块
     if (dataType === "mermaid" || cls.includes("mermaid-node")) {

@@ -15,6 +15,16 @@ interface TableFloatingToolbarProps {
 
 export function TableFloatingToolbar({ editor, tableElement, onClose, onContentChange }: TableFloatingToolbarProps) {
   const { t } = useTranslation();
+
+  // editor 销毁后 commandManager 被置 null，任何 .chain() 都会抛
+  // "Cannot read properties of null (reading 'chain')"；统一经此守卫执行命令
+  const runSafe = useCallback((fn: (ed: Editor) => void) => {
+    try {
+      if (!editor || editor.isDestroyed) return;
+      fn(editor);
+    } catch { /* editor 已销毁时忽略 */ }
+  }, [editor]);
+
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGridPicker, setShowGridPicker] = useState(false);
   const [hoverRow, setHoverRow] = useState(0);
@@ -149,67 +159,69 @@ export function TableFloatingToolbar({ editor, tableElement, onClose, onContentC
   const handleAlign = (align: "left" | "center" | "right") => {
     // 表格内（含多选单元格 CellSelection）：用 setCellAttribute 批量设置单元格 align，
     // TableCell/TableHeader 内置 align 属性会渲染为 td/th 上的 text-align 样式
-    if (editor.isActive("tableCell") || editor.isActive("tableHeader")) {
-      editor.chain().focus().setCellAttribute("align", align).run();
-      return;
-    }
-    // 非表格场景：回退到段落级 textAlign
-    editor.chain().focus().command(({ tr, state }) => {
-      const { $from } = state.selection;
-      for (let depth = $from.depth; depth >= 0; depth--) {
-        const node = $from.node(depth);
-        if (node.type.name === "paragraph") {
-          const pos = $from.before(depth);
-          tr.setNodeMarkup(pos, undefined, { ...node.attrs, textAlign: align });
-          return true;
-        }
+    runSafe((ed) => {
+      if (ed.isActive("tableCell") || ed.isActive("tableHeader")) {
+        ed.chain().focus().setCellAttribute("align", align).run();
+        return;
       }
-      return false;
-    }).run();
+      // 非表格场景：回退到段落级 textAlign
+      ed.chain().focus().command(({ tr, state }) => {
+        const { $from } = state.selection;
+        for (let depth = $from.depth; depth >= 0; depth--) {
+          const node = $from.node(depth);
+          if (node.type.name === "paragraph") {
+            const pos = $from.before(depth);
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, textAlign: align });
+            return true;
+          }
+        }
+        return false;
+      }).run();
+    });
   };
 
   const handleInsertRowAbove = () => {
-    editor.chain().focus().addRowBefore().run();
+    runSafe((ed) => ed.chain().focus().addRowBefore().run());
     setShowMoreMenu(false);
   };
 
   const handleInsertRowBelow = () => {
-    editor.chain().focus().addRowAfter().run();
+    runSafe((ed) => ed.chain().focus().addRowAfter().run());
     setShowMoreMenu(false);
   };
 
   const handleInsertColLeft = () => {
-    editor.chain().focus().addColumnBefore().run();
+    runSafe((ed) => ed.chain().focus().addColumnBefore().run());
     setShowMoreMenu(false);
   };
 
   const handleInsertColRight = () => {
-    editor.chain().focus().addColumnAfter().run();
+    runSafe((ed) => ed.chain().focus().addColumnAfter().run());
     setShowMoreMenu(false);
   };
 
   const handleDeleteRow = () => {
-    editor.chain().focus().deleteRow().run();
+    runSafe((ed) => ed.chain().focus().deleteRow().run());
     setShowMoreMenu(false);
   };
 
   const handleDeleteCol = () => {
-    editor.chain().focus().deleteColumn().run();
+    runSafe((ed) => ed.chain().focus().deleteColumn().run());
     setShowMoreMenu(false);
   };
 
   const handleMergeCells = () => {
-    editor.chain().focus().mergeCells().run();
+    runSafe((ed) => ed.chain().focus().mergeCells().run());
     setShowMoreMenu(false);
   };
 
   const handleSplitCell = () => {
-    editor.chain().focus().splitCell().run();
+    runSafe((ed) => ed.chain().focus().splitCell().run());
     setShowMoreMenu(false);
   };
 
   const handleDeleteTable = () => {
-    editor.chain().focus().deleteTable().run();
+    runSafe((ed) => ed.chain().focus().deleteTable().run());
     onClose();
   };
 

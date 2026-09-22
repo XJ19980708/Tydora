@@ -481,6 +481,21 @@
   flex-shrink: 0;
 }
 
+/* 临时仓库徽标（双击打开外部文件挂载的目录，不持久化） */
+.vault-temp-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 16px;
+  vertical-align: 1px;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: rgba(137, 180, 250, 0.12);
+  border: 1px solid rgba(137, 180, 250, 0.25);
+}
+
 .vault-menu-remove-btn {
   display: none;
   background: none;

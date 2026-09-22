@@ -65,6 +65,7 @@ import { DOMParser as ProseMirrorDOMParser, Fragment, Slice } from "@tiptap/pm/m
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { ContextMenu } from "./ContextMenu";
 import { LinkDialog } from "./LinkDialog";
+import { findLinkRangeAt } from "./link-source";
 import { MathDialog } from "./MathDialog";
 import type { ThemeName } from "../themes";
 import type { ImageSettings } from "../services";
@@ -87,6 +88,28 @@ function getEditorView(editor: any): import("prosemirror-view").EditorView | nul
     if (editor.isDestroyed) return null;
     const view = editor.view;
     return view ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 校验外部传入的 PM 选区（查找/替换、TOC 等缓存的位置可能因文档后续变化而失效）。
+ * 位置越界（文档已变短/已切换文件）或非法时返回 null，调用方应直接忽略本次操作，
+ * 否则 ProseMirror 会抛出未捕获的 RangeError: "Position X out of range"。
+ */
+function sanitizeSelectionRange(
+  editor: Editor,
+  from: number,
+  to: number,
+): { from: number; to: number } | null {
+  try {
+    const size = editor.state.doc.content.size;
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+    if (from > size || to > size) return null;
+    const f = Math.max(0, Math.round(from));
+    const t = Math.max(0, Math.round(to));
+    return f <= t ? { from: f, to: t } : { from: t, to: f };
   } catch {
     return null;
   }
@@ -151,6 +174,21 @@ function tryApplyExternalMarkdownPatch(editor: Editor, newMarkdown: string): boo
 }
 
 /**
+ * 判断 editor 是否仍可安全执行命令。
+ * TipTap v3 在 destroy() 时会把 commandManager / extensionManager 置为 null，
+ * 之后任何 editor.chain() 都会抛 "Cannot read properties of null (reading 'chain')"。
+ * 模式切换（IR↔SV）/窗格销毁后残留的异步回调与外部句柄必须先经此守卫。
+ */
+function isEditorAlive(editor: Editor | null | undefined): editor is Editor {
+  if (!editor) return false;
+  try {
+    return !editor.isDestroyed;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 滚动到指定标题并高亮（目录锚点链接 #标题 跳转共用）。
  * 匹配规则与 scrollToHeading 一致：全文匹配 > 双向包含（按长度比例给分）。
  */
@@ -159,6 +197,7 @@ function scrollEditorToHeading(
   container: HTMLElement | null,
   rawText: string,
 ): void {
+  if (!isEditorAlive(editor)) return;
   const cleanText = rawText.replace(/[#*_`~]/g, "").trim();
   if (!cleanText) return;
 
@@ -185,8 +224,10 @@ function scrollEditorToHeading(
 
   if (bestPos === null || bestScore <= 0) return;
   const targetPos = bestPos as number;
-  editor.chain().focus().setTextSelection(targetPos).run();
-  editor.commands.highlightHeading(targetPos, 1500);
+  try {
+    editor.chain().focus().setTextSelection(targetPos).run();
+    editor.commands.highlightHeading(targetPos, 1500);
+  } catch { /* editor 已销毁时忽略 */ }
 
   requestAnimationFrame(() => {
     const scrollContainer = container?.querySelector(".tiptap-editor");
@@ -1803,7 +1844,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
 
     // 链接弹窗确认：插入链接
     const handleLinkDialogConfirm = useCallback((text: string, url: string) => {
-      if (!editor) return;
+      if (!isEditorAlive(editor)) return;
       editor
         .chain()
         .focus()
@@ -1821,7 +1862,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
     // 数学公式弹窗确认：插入新公式或更新已有公式
     const handleMathDialogConfirm = useCallback(
       (latex: string, block: boolean) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         const dialog = mathDialogRef.current;
         if (dialog?.pos != null) {
           // 编辑已有公式
@@ -1863,7 +1904,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
     // 将编辑中的链接源码恢复为渲染后的链接
     const restoreLinkEdit = useCallback(() => {
       const range = linkEditRef.current;
-      if (!range || !editor) return;
+      if (!range || !isEditorAlive(editor)) return;
 
       const { from, to } = range;
       const doc = editor.state.doc;
@@ -2000,25 +2041,17 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         }
 
         const { doc } = editor.state;
-        let from = -1;
-        let to = -1;
-        let linkHref = "";
 
-        // 在点击位置附近查找带 link mark 的文本节点
-        doc.nodesBetween(pos, Math.min(pos + 1000, doc.content.size), (node, nodePos) => {
-          if (node.isText) {
-            const linkMark = node.marks.find((m: Record<string, any>) => m.type.name === "link");
-            if (linkMark) {
-              from = nodePos;
-              to = nodePos + node.nodeSize;
-              linkHref = linkMark.attrs.href as string;
-              return false;
-            }
-          }
-          return true;
-        });
+        // 在点击位置查找包含 pos 的带 link mark 的文本节点
+        // （不要在这里内联 nodesBetween + return false —— 它无法提前终止遍历，
+        //  多链接时会不断覆盖结果、最终命中最后一个链接，详见 link-source.ts）
+        const linkRange = findLinkRangeAt(doc, pos);
 
-        if (from === -1 || !linkHref) return;
+        if (!linkRange) return;
+
+        const from = linkRange.from;
+        const to = linkRange.to;
+        const linkHref = linkRange.href;
 
         const text = doc.textBetween(from, to);
         const md = `[${text}](${linkHref})`;
@@ -2272,16 +2305,16 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         // SV 模式下聚焦源码编辑器，否则聚焦 TipTap view
         if (mode === "sv") {
           sourceEditorRef.current?.focus();
-        } else if (editor) {
+        } else if (isEditorAlive(editor)) {
           editor.commands.focus();
         }
       },
       insertTextAtCursor: (text: string) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         editor.chain().focus().insertContent(text).run();
       },
       replaceRangeWithWikiLink: (fromPos: number, noteName: string, heading?: string, display?: string) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         const to = editor.state.selection.from;
         editor
           .chain()
@@ -2293,7 +2326,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
           .run();
       },
       replaceRangeWithTag: (fromPos: number, tag: string) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         const to = editor.state.selection.from;
         editor
           .chain()
@@ -2307,7 +2340,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
           .run();
       },
       resize: () => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         const scrollContainer = containerRef.current?.querySelector('.tiptap-editor') as HTMLElement | null;
         const savedScrollTop = scrollContainer?.scrollTop ?? 0;
         editor.commands.focus();
@@ -2319,22 +2352,23 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         }
       },
       highlightSearch: (query: string) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         editor.commands.setSearchHighlight(query);
       },
       clearHighlight: () => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         editor.commands.clearSearchHighlight();
       },
       executeCommand: (name: string) => {
+        if (!isEditorAlive(editor)) return;
         executeCommand(name, editor);
       },
       scrollToHeading: (text: string, _line: number) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         scrollEditorToHeading(editor, containerRef.current, text);
       },
       scrollToLine: (line: number) => {
-        if (!editor) return;
+        if (!isEditorAlive(editor)) return;
         const { doc } = editor.state;
         // doc.textContent 不带换行（块间无分隔符），split("\n") 永远只有 1 行，
         // 旧实现任何 line>1 都会跳到文末。这里按「每个 textblock 一行 +
@@ -2354,7 +2388,9 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         if (lineStarts.length === 0) return;
         const clampedLine = Math.max(1, Math.min(line, lineStarts.length));
         const pos = lineStarts[clampedLine - 1];
-        editor.chain().focus().setTextSelection(pos).run();
+        try {
+          editor.chain().focus().setTextSelection(pos).run();
+        } catch { /* editor 已销毁时忽略 */ }
 
         requestAnimationFrame(() => {
           const scrollContainer = containerRef.current?.querySelector('.tiptap-editor');
@@ -2404,12 +2440,18 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       },
       selectMatch: (from: number, to: number) => {
         if (!editor) return;
-        editor.chain().setTextSelection({ from, to }).run();
+        // 查找结果缓存的位置可能因文档变化（输入/外部更新/切换文件）而失效，
+        // 越界时忽略本次操作，避免 ProseMirror "Position X out of range" 崩溃
+        const range = sanitizeSelectionRange(editor, from, to);
+        if (!range) return;
+        try {
+          editor.chain().setTextSelection(range).run();
+        } catch { /* 文档状态竞争时兜底，忽略 */ }
         requestAnimationFrame(() => {
           const scrollContainer = containerRef.current?.querySelector('.tiptap-editor') as HTMLElement | null;
           if (!scrollContainer) return;
           const view = getEditorView(editor);
-          const coords = view?.coordsAtPos?.(from);
+          const coords = view?.coordsAtPos?.(range.from);
           if (coords) {
             const containerRect = scrollContainer.getBoundingClientRect();
             const targetScroll = scrollContainer.scrollTop + coords.top - containerRect.top - containerRect.height / 3;
@@ -2419,12 +2461,16 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       },
       selectAndScroll: (from: number, to: number) => {
         if (!editor) return;
-        editor.chain().focus().setTextSelection({ from, to }).run();
+        const range = sanitizeSelectionRange(editor, from, to);
+        if (!range) return;
+        try {
+          editor.chain().focus().setTextSelection(range).run();
+        } catch { /* 文档状态竞争时兜底，忽略 */ }
         requestAnimationFrame(() => {
           const scrollContainer = containerRef.current?.querySelector('.tiptap-editor') as HTMLElement | null;
           if (!scrollContainer) return;
           const view = getEditorView(editor);
-          const coords = view?.coordsAtPos?.(from);
+          const coords = view?.coordsAtPos?.(range.from);
           if (coords) {
             const containerRect = scrollContainer.getBoundingClientRect();
             const targetScroll = scrollContainer.scrollTop + coords.top - containerRect.top - containerRect.height / 3;
@@ -2434,7 +2480,11 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       },
       replaceAt: (from: number, to: number, replacement: string) => {
         if (!editor) return;
-        editor.chain().focus().setTextSelection({ from, to }).insertContent(replacement).run();
+        const range = sanitizeSelectionRange(editor, from, to);
+        if (!range) return;
+        try {
+          editor.chain().focus().setTextSelection(range).insertContent(replacement).run();
+        } catch { /* 文档状态竞争时兜底，忽略 */ }
       },
     }));
 

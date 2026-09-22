@@ -1,7 +1,91 @@
 {
-  "generatedAt": "2026-09-17",
-  "current": "0.2.9",
+  "generatedAt": "2026-09-22",
+  "current": "0.3.1",
   "versions": [
+    {
+      "version": "0.3.1",
+      "date": "2026-09-17",
+      "released": false,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "支持导入 Markdown 文档与整个文件夹树",
+              "hash": "411b505"
+            },
+            {
+              "text": "关于页新增版本更新说明",
+              "hash": "6066064"
+            },
+            {
+              "text": "导入镜像支持手动重新同步",
+              "hash": "a8044e9"
+            },
+            {
+              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
+              "hash": "11ce405"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复任务管理器窗口图标显示噪点花纹",
+              "hash": "acaf468"
+            },
+            {
+              "text": "当前版本号已有同名 tag 时并进该行，不再同名两行",
+              "hash": "f774bdd"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "README 与 README_ZH 增加中英文互链",
+              "hash": "8e365f5"
+            }
+          ]
+        },
+        {
+          "group": "test",
+          "items": [
+            {
+              "text": "补「导入镜像 / 重新同步」回归测试用例",
+              "hash": "8a68b37"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "替换应用 logo 为自定义图标",
+              "hash": "c062fb6"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock",
+              "hash": "cab78ab"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock",
+              "hash": "b9f3ea7"
+            },
+            {
+              "text": "合并上游后重新生成更新说明数据",
+              "hash": "e52cebf"
+            },
+            {
+              "text": "合并上游后重建 Cargo.lock 与 capability schema",
+              "hash": "e6022cf"
+            }
+          ]
+        }
+      ]
+    },
     {
       "version": "0.3.0",
       "date": "2026-09-17",
@@ -54,22 +138,6 @@
             {
               "text": "add welcome vault functionality with language-specific document filtering",
               "hash": "2171df6"
-            },
-            {
-              "text": "支持导入 Markdown 文档与整个文件夹树",
-              "hash": "411b505"
-            },
-            {
-              "text": "关于页新增版本更新说明",
-              "hash": "6066064"
-            },
-            {
-              "text": "导入镜像支持手动重新同步",
-              "hash": "a8044e9"
-            },
-            {
-              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
-              "hash": "11ce405"
             }
           ]
         },
@@ -91,28 +159,6 @@
             {
               "text": "修复文档标题格式，确保一致性",
               "hash": "b6f6512"
-            },
-            {
-              "text": "修复任务管理器窗口图标显示噪点花纹",
-              "hash": "acaf468"
-            }
-          ]
-        },
-        {
-          "group": "docs",
-          "items": [
-            {
-              "text": "README 与 README_ZH 增加中英文互链",
-              "hash": "8e365f5"
-            }
-          ]
-        },
-        {
-          "group": "test",
-          "items": [
-            {
-              "text": "补「导入镜像 / 重新同步」回归测试用例",
-              "hash": "8a68b37"
             }
           ]
         },
@@ -122,26 +168,6 @@
             {
               "text": "更新版本号至 0.2.9，反映最新更改",
               "hash": "2f84ec5"
-            },
-            {
-              "text": "替换应用 logo 为自定义图标",
-              "hash": "c062fb6"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock",
-              "hash": "cab78ab"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock",
-              "hash": "b9f3ea7"
-            },
-            {
-              "text": "合并上游后重新生成更新说明数据",
-              "hash": "e52cebf"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock 与 capability schema",
-              "hash": "e6022cf"
             }
           ]
         }

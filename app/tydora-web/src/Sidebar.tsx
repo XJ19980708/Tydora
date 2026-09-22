@@ -72,6 +72,8 @@ const TAB_DRAG_THRESHOLD = 4;
 export interface VaultInfo {
   name: string;
   path: string;
+  /** 临时仓库：双击打开仓库外的 .md 文件时挂载其所在目录，不持久化（重启后不保留） */
+  temporary?: boolean;
 }
 
 interface TreeNode {
@@ -256,6 +258,17 @@ function ancestorDirs(dirPath: string, rootPath: string): string[] {
     cur = parent;
   }
   return result;
+}
+
+/** 将绝对路径转换为相对库根目录的路径（不在库内时返回原路径），与顶部菜单「基于库的相对路径」口径一致。 */
+function toVaultRelativePath(p: string, rootPath: string): string {
+  const norm = (s: string) => s.replace(/\\/g, "/").replace(/\/+$/, "");
+  const root = norm(rootPath);
+  const path = norm(p);
+  if (root && path.toLowerCase().startsWith(root.toLowerCase() + "/")) {
+    return path.slice(root.length + 1);
+  }
+  return p;
 }
 
 /** 比较当前可见文件树（折叠目录不看子节点）。结构未变时跳过 setState，避免刷新打散点击。 */
@@ -802,9 +815,10 @@ function ContextMenu({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
+      const target = e.target as Node;
+      // 子菜单 portal 到 body，不在 menuRef 内，需一并排除，否则点击子菜单项会先触发关闭
+      if (menuRef.current?.contains(target) || subRef.current?.contains(target)) return;
+      onClose();
     };
     const keyHandler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -968,6 +982,7 @@ interface FileActions {
   onCopyFile: () => void;
   onDelete: () => void;
   onCopyPath: () => void;
+  onCopyRelativePath: () => void;
   onOpenLocation: () => void;
   onOpenTerminal: () => void;
   onNewWindow: () => void;
@@ -1143,7 +1158,16 @@ function getFileMenuItems(
     },
     { label: t("sidebar.contextMenu.moveTo"), icon: MENU_ICONS.moveTo, onClick: actions.onMoveTo },
     { label: t("sidebar.contextMenu.delete"), icon: MENU_ICONS.delete, onClick: actions.onDelete, danger: true, separator: true },
-    { label: t("sidebar.contextMenu.copyPath"), icon: MENU_ICONS.copyPath, onClick: actions.onCopyPath, separator: true },
+    {
+      label: t("sidebar.contextMenu.copyPath"),
+      icon: MENU_ICONS.copyPath,
+      onClick: actions.onCopyPath,
+      separator: true,
+      children: [
+        { label: t("sidebar.contextMenu.copyRelativePath"), onClick: actions.onCopyRelativePath },
+        { label: t("sidebar.contextMenu.copyAbsolutePath"), onClick: actions.onCopyPath },
+      ],
+    },
     { label: t("sidebar.contextMenu.openInTerminal"), icon: MENU_ICONS.openTerminal, onClick: actions.onOpenTerminal },
     { label: t("sidebar.contextMenu.openLocation"), icon: MENU_ICONS.openLocation, onClick: actions.onOpenLocation },
   ];
@@ -1160,20 +1184,41 @@ function getFolderMenuItems(actions: FileActions, t: (key: string) => string): C
     { label: t("sidebar.contextMenu.rename"), icon: MENU_ICONS.rename, onClick: actions.onRename, separator: true },
     { label: t("sidebar.contextMenu.moveTo"), icon: MENU_ICONS.moveTo, onClick: actions.onMoveTo },
     { label: t("sidebar.contextMenu.delete"), icon: MENU_ICONS.delete, onClick: actions.onDelete, danger: true, separator: true },
-    { label: t("sidebar.contextMenu.copyPath"), icon: MENU_ICONS.copyPath, onClick: actions.onCopyPath },
+    {
+      label: t("sidebar.contextMenu.copyPath"),
+      icon: MENU_ICONS.copyPath,
+      onClick: actions.onCopyPath,
+      children: [
+        { label: t("sidebar.contextMenu.copyRelativePath"), onClick: actions.onCopyRelativePath },
+        { label: t("sidebar.contextMenu.copyAbsolutePath"), onClick: actions.onCopyPath },
+      ],
+    },
     { label: t("sidebar.contextMenu.openInTerminal"), icon: MENU_ICONS.openTerminal, onClick: actions.onOpenTerminal },
     { label: t("sidebar.contextMenu.openLocation"), icon: MENU_ICONS.openLocation, onClick: actions.onOpenLocation },
   ];
 }
 
-function getBlankMenuItems(actions: FileActions, t: (key: string) => string): ContextMenuItem[] {
+function getBlankMenuItems(
+  actions: FileActions,
+  t: (key: string) => string,
+  opts: { relativeDisabled: boolean },
+): ContextMenuItem[] {
   return [
     { label: t("sidebar.contextMenu.newFile"), icon: MENU_ICONS.newFile, onClick: actions.onNewFile },
     { label: t("sidebar.contextMenu.newCanvas"), icon: MENU_ICONS.newCanvas, onClick: actions.onNewWhiteboard },
     { label: t("sidebar.contextMenu.newFolder"), icon: MENU_ICONS.newFolder, onClick: actions.onNewFolder, separator: true },
     { label: t("sidebar.contextMenu.importMarkdown"), icon: MENU_ICONS.importMarkdown, onClick: actions.onImportMarkdown },
     { label: t("sidebar.contextMenu.importFolder"), icon: MENU_ICONS.importFolder, onClick: actions.onImportFolder },
-    { label: t("sidebar.contextMenu.copyPath"), icon: MENU_ICONS.copyPath, onClick: actions.onCopyPath },
+    {
+      label: t("sidebar.contextMenu.copyPath"),
+      icon: MENU_ICONS.copyPath,
+      onClick: actions.onCopyPath,
+      children: [
+        // 空白处对应库根目录，没有「相对路径」概念，置灰处理
+        { label: t("sidebar.contextMenu.copyRelativePath"), onClick: actions.onCopyRelativePath, disabled: opts.relativeDisabled },
+        { label: t("sidebar.contextMenu.copyAbsolutePath"), onClick: actions.onCopyPath },
+      ],
+    },
     { label: t("sidebar.contextMenu.openInTerminal"), icon: MENU_ICONS.openTerminal, onClick: actions.onOpenTerminal },
     { label: t("sidebar.contextMenu.openLocation"), icon: MENU_ICONS.openLocation, onClick: actions.onOpenLocation },
   ];
@@ -1522,6 +1567,13 @@ function TreeNodeComp({
     }).catch(() => { prompt(`${i18n.t("sidebar.file.filePath")}`, node.path); });
   }, [node]);
 
+  const handleCopyRelativePath = useCallback(() => {
+    const relativePath = toVaultRelativePath(node.path, rootPath);
+    navigator.clipboard.writeText(relativePath).then(() => {
+      showToast(i18n.t("sidebar.toast.pathCopied"));
+    }).catch(() => { prompt(`${i18n.t("sidebar.file.filePath")}`, relativePath); });
+  }, [node, rootPath]);
+
   const handleOpenLocation = useCallback(async () => {
     try {
       await invoke("open_file_location", { filePath: node.path });
@@ -1586,6 +1638,7 @@ function TreeNodeComp({
     onCopyFile: handleCopyFileToClipboard,
     onDelete: handleDelete,
     onCopyPath: handleCopyPath,
+    onCopyRelativePath: handleCopyRelativePath,
     onOpenLocation: handleOpenLocation,
     onOpenTerminal: handleOpenTerminal,
     onBookmark: () => onBookmark(node.path, node.isDirectory),
@@ -2399,6 +2452,7 @@ function FileTree({
     onCopyFile: () => {},
     onDelete: () => {},
     onCopyPath: handleCopyRootPath,
+    onCopyRelativePath: handleCopyRootPath,
     onOpenLocation: handleOpenRootLocation,
     onOpenTerminal: handleOpenRootTerminal,
     onBookmark: () => {},
@@ -3105,7 +3159,7 @@ function FileTree({
         <ContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
-          items={getBlankMenuItems(blankActions, i18n.t)}
+          items={getBlankMenuItems(blankActions, i18n.t, { relativeDisabled: true })}
           onClose={() => setCtxMenu(null)}
         />
       )}
@@ -3577,6 +3631,9 @@ function VaultSwitcher({
           }}
         >
           {activeVault ? activeVault.name : t("sidebar.vault.unselected")}
+          {activeVault?.temporary && (
+            <span className="vault-temp-badge">{t("sidebar.vault.temporary")}</span>
+          )}
         </span>
         <button
           className="vault-menu-btn"
@@ -3606,7 +3663,12 @@ function VaultSwitcher({
                   setMenuOpen(false);
                 }}
               >
-                <span className="vault-menu-name">{vault.name}</span>
+                <span className="vault-menu-name">
+                  {vault.name}
+                  {vault.temporary && (
+                    <span className="vault-temp-badge">{t("sidebar.vault.temporary")}</span>
+                  )}
+                </span>
                 <button
                   className="vault-menu-remove-btn"
                   title={t("sidebar.vault.remove")}
