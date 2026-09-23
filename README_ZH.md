@@ -1,13 +1,14 @@
 [![GitHub Stars](https://img.shields.io/github/stars/zuorn/Tydora?style=flat-square)](https://github.com/zuorn/Tydora)
-[![Release](https://img.shields.io/github/v/release/zuorn/Tydora?style=flat-square)](https://github.com/zuorn/Tydora/releases)
+[![Release](https://img.shields.io/github/v/release/XJ19980708/Tydora?style=flat-square)](https://github.com/XJ19980708/Tydora/releases)
 [![License](<https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square>)](LICENSE)
 [![Platform](<https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square>)]()
 [![Tauri](https://img.shields.io/badge/Tauri-v2-blue?style=flat-square)](https://v2.tauri.app/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square)](https://react.dev/)
-[![dsh.so security](https://www.dsh.so/badge/tydora.svg)](https://www.dsh.so/artifact/tydora)
-[![dsh.so install](https://www.dsh.so/badge/install/tydora.svg)](https://www.dsh.so/artifact/tydora)
 
 [English](README.md) | 简体中文
+
+> **这是 [zuorn/Tydora](https://github.com/zuorn/Tydora) 的个人 fork 版**（Apache-2.0），基于上游 **v0.3.1** 构建，增加了若干本地功能，并提供免安装的便携版。
+> 📦 **便携版下载**：[Releases](https://github.com/XJ19980708/Tydora/releases) 里的 `Tydora-0.3.1-portable-win-x64.zip`，解压后双击 `tydora-desktop.exe`（Windows x64）。首次启动有几个注意事项，见[快速开始](#快速开始)。
 
 ![image.png](/website/assets/image-20260910-223544.png)
 
@@ -65,19 +66,49 @@
 
 ---
 
+## 本 Fork 的改动
+
+[zuorn/Tydora](https://github.com/zuorn/Tydora) 的个人 fork，跟随上游发布（当前 **v0.3.1**）。改动分两类：
+
+**本 fork 新增**
+
+- **打开文件（不导入）** —— `Ctrl+Alt+O`、欢迎页按钮或命令面板打开任意 Markdown 文件，**直接编辑原文件**而不是复制副本；多选时每个文件各开一个新窗口。不属于任何仓库的文件会进「最近打开」列表，并自动展开大纲栏。
+- **导入 Markdown 文档 / 整个文件夹** —— 在文件树右键菜单里把散落的 `.md`（连同图片）复制进仓库，保留目录结构。
+- **导入镜像 + 手动重新同步** —— 导入过的文件登记映射，之后可对照源重新同步：源更新则覆盖，源删除只报告、**不删仓库里的文件**。
+- **版本更新说明** —— 「关于 → 版本更新说明」逐版本列出改动（由本地 git 历史离线生成）。
+- 自定义应用 logo；修复 Windows 任务管理器里窗口图标显示为乱码花纹的问题。
+
+**随上游获得（v0.2.8 … v0.3.1）**
+
+- 仓外文件临时仓库、界面缩放（75%–150%）、导出/PDF 页面背景色、侧栏复制相对/绝对路径、`[TOC]` 生成、文件树文件类型图标、首次启动欢迎仓库、编辑器安全命令执行。
+
 ## 快速开始
 
-1. 请从 [Release ](https://github.com/zuorn/Tydora/releases)下载并安装Tydora
+### 便携版（推荐）
+
+1. 从本仓库 [Releases](https://github.com/XJ19980708/Tydora/releases) 下载 `Tydora-0.3.1-portable-win-x64.zip`。
+2. 解压到任意位置（两个 `.exe` 保持同目录），双击 `tydora-desktop.exe`。
+
+首次启动前的几个注意事项：
+
+- **SmartScreen 拦截** —— 若 Windows 提示「已保护你的电脑」，点「更多信息」→「仍要运行」。这是未做代码签名所致，不是文件有问题。
+- **需要 WebView2 运行时** —— Windows 11 自带；Windows 10 一般随 Microsoft Edge 已装好。
+- **如果装过官方版 Tydora** —— 请先完全退出（含系统托盘图标）。两者共用同一个单实例标识，否则双击便携版只会唤起已安装的那个。
+- 设置、主题等存放在 `%APPDATA%\com.tydora.editor` —— 它是免安装而非全便携，换电脑时把这个目录一起带走即可。
+
+### 官方安装包
+
+上游官方安装包（会注册 `.md` 文件关联）见 [zuorn/Tydora Releases](https://github.com/zuorn/Tydora/releases)。
 
 ## **从源码运行**
 
 ```bash
-git clone https://github.com/zuorn/Tydora.git
+git clone https://github.com/XJ19980708/Tydora.git
 cd Tydora
 npm install
 
 npm run tauri dev
-npm run tauri build
+npm run tauri build -- --no-bundle   # 便携 exe → target/release/tydora-desktop.exe
 ```
 
 ## 技术栈
@@ -106,3 +137,5 @@ npm run tauri build
 ## 许可证
 
 本项目使用 [Apache License 2.0](LICENSE) 许可证。
+
+本仓库 fork 自 [zuorn/Tydora](https://github.com/zuorn/Tydora)，原项目及其贡献者享有原始著作权。本 fork 的新增部分（自定义 logo、直接打开源文件、导入镜像、版本更新说明）同样以 Apache-2.0 许可证发布。
