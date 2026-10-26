@@ -1,31 +1,15 @@
 {
-  "generatedAt": "2026-09-22",
+  "generatedAt": "2026-10-26",
   "current": "0.3.1",
   "versions": [
     {
       "version": "0.3.1",
       "date": "2026-09-22",
-      "released": false,
+      "released": true,
       "groups": [
         {
           "group": "feat",
           "items": [
-            {
-              "text": "支持导入 Markdown 文档与整个文件夹树",
-              "hash": "411b505"
-            },
-            {
-              "text": "关于页新增版本更新说明",
-              "hash": "6066064"
-            },
-            {
-              "text": "导入镜像支持手动重新同步",
-              "hash": "a8044e9"
-            },
-            {
-              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
-              "hash": "11ce405"
-            },
             {
               "text": "添加语言切换链接至 README 文件，支持中英文切换",
               "hash": "69af567"
@@ -35,7 +19,11 @@
               "hash": "5f924b2"
             },
             {
-              "text": "添加界面缩放功能，支持步进调整和手动输入，优化用户体验 feat: 导出功能增强，支持 frontmatter 元数据块的样式处理 chore: 更新中英文语言包，调整界面缩放描述",
+              "text": "添加界面缩放功能，支持步进调整和手动输入，优化用户体验",
+              "hash": "d71d3a0"
+            },
+            {
+              "text": "导出功能增强，支持 frontmatter 元数据块的样式处理",
               "hash": "d71d3a0"
             },
             {
@@ -53,6 +41,22 @@
             {
               "text": "更新版本号至 0.3.1，反映最新更改",
               "hash": "67d2d35"
+            },
+            {
+              "text": "支持导入 Markdown 文档与整个文件夹树",
+              "hash": "411b505"
+            },
+            {
+              "text": "关于页新增版本更新说明",
+              "hash": "6066064"
+            },
+            {
+              "text": "导入镜像支持手动重新同步",
+              "hash": "a8044e9"
+            },
+            {
+              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
+              "hash": "11ce405"
             }
           ]
         },
@@ -75,6 +79,10 @@
             {
               "text": "README 与 README_ZH 增加中英文互链",
               "hash": "8e365f5"
+            },
+            {
+              "text": "中英 README fork 化，补便携版下载与本 fork 功能清单",
+              "hash": "c7612f4"
             }
           ]
         },
@@ -91,24 +99,12 @@
           "group": "chore",
           "items": [
             {
+              "text": "更新中英文语言包，调整界面缩放描述",
+              "hash": "d71d3a0"
+            },
+            {
               "text": "替换应用 logo 为自定义图标",
               "hash": "c062fb6"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock",
-              "hash": "cab78ab"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock",
-              "hash": "b9f3ea7"
-            },
-            {
-              "text": "合并上游后重新生成更新说明数据",
-              "hash": "e52cebf"
-            },
-            {
-              "text": "合并上游后重建 Cargo.lock 与 capability schema",
-              "hash": "e6022cf"
             }
           ]
         }

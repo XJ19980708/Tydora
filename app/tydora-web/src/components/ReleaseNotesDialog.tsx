@@ -143,8 +143,9 @@ export default function ReleaseNotesDialog({ open, onClose, currentVersion }: Re
                           {t(`settings.about.releaseNotesGroups.${KNOWN_GROUPS.has(group.group) ? group.group : "other"}`)}
                         </div>
                         <ul className="release-notes-list">
-                          {group.items.map((item) => (
-                            <li key={item.hash} className="release-notes-item">
+                          {group.items.map((item, itemIndex) => (
+                            // 一条提交切成多条时 hash 会重复，key 里带上序号
+                            <li key={`${item.hash}-${itemIndex}`} className="release-notes-item">
                               <span className="release-notes-item-text">{item.text}</span>
                               <code className="release-notes-item-hash">{item.hash}</code>
                             </li>

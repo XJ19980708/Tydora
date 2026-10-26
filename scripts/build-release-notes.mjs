@@ -4,6 +4,7 @@
  *
  * 分组规则与 cliff.toml 保持一致，但不依赖 git-cliff（它未作为项目依赖安装），
  * 因此离线可用；同时因为读取的是本地历史，fork 上的本地提交也会被收录。
+ * 例外：fork 合并上游后产生的重建锁文件 / 重生成数据类 chore 会被过滤掉。
  *
  * 版本分段：每个 tag 一行（范围 = 上一个更旧的 tag .. 本 tag），最新 tag 之后的
  * 提交归入 VERSION 对应的"当前版本"行；该版本号已经打过 tag 时（fork 跟随上游
@@ -25,6 +26,31 @@ const GROUP_ORDER = ["feat", "fix", "perf", "refactor", "docs", "style", "test",
 const OTHER_GROUP = "other";
 
 const CONVENTIONAL = /^(?<type>[a-zA-Z]+)(?:\((?<scope>[^)]*)\))?!?:\s*(?<desc>.+)$/;
+const TYPE_WORDS = "feat|fix|perf|refactor|docs|style|test|ci|build|chore";
+
+/**
+ * 有些提交把多条 conventional 消息写进同一个段落（每条一行），
+ * git 的 %s 会把段内换行折成空格，于是几条变更挤成一条超长条目。
+ * 这里按 type 前缀把它们切回各自的一条，各归各的组。
+ */
+const MULTIPART = new RegExp(`\\s(?=(?:${TYPE_WORDS})(?:\\([^)]*\\))?!?:\\s)`, "i");
+
+function splitSubject(subject) {
+  const parts = subject
+    .split(MULTIPART)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // 只有每一段都合法才切开，避免误伤正文里恰好出现 "feat: " 之类的普通提交
+  if (parts.length < 2 || !parts.every((p) => CONVENTIONAL.test(p))) return [subject];
+  return parts;
+}
+
+/**
+ * fork 每次合并上游都要产生的本地维护提交（重建锁文件、重生成更新说明数据）。
+ * 它们对用户没有意义，且措辞高度固定，直接丢弃；上游自己的 chore 不受影响。
+ */
+const HOUSEKEEPING_GROUPS = new Set(["chore", "build", "ci"]);
+const HOUSEKEEPING = /^合并.*(重建|重新生成)/;
 
 function git(args) {
   return execFileSync("git", args, {
@@ -45,20 +71,24 @@ function collectGroups(range) {
   if (!raw) return [];
 
   const byType = new Map();
-  for (const line of raw.split("\n")) {
+  // git log 新→旧，先倒成旧→新，同一条提交切开的片段顺序才不会被倒掉
+  for (const line of raw.split("\n").reverse()) {
     const sep = line.indexOf("\t");
     if (sep < 0) continue;
     const hash = line.slice(0, sep);
     const subject = line.slice(sep + 1).trim();
-    const match = CONVENTIONAL.exec(subject);
-    if (!match) continue; // 与 cliff.toml 的 filter_unconventional = true 对齐
-    const type = match.groups.type.toLowerCase();
-    const group = GROUP_ORDER.includes(type) ? type : OTHER_GROUP;
-    if (!byType.has(group)) byType.set(group, []);
-    byType.get(group).push({ text: match.groups.desc.trim(), hash });
+    for (const piece of splitSubject(subject)) {
+      const match = CONVENTIONAL.exec(piece);
+      if (!match) continue; // 与 cliff.toml 的 filter_unconventional = true 对齐
+      const type = match.groups.type.toLowerCase();
+      const group = GROUP_ORDER.includes(type) ? type : OTHER_GROUP;
+      const desc = match.groups.desc.trim();
+      if (HOUSEKEEPING_GROUPS.has(group) && HOUSEKEEPING.test(desc)) continue;
+      if (!byType.has(group)) byType.set(group, []);
+      byType.get(group).push({ text: desc, hash });
+    }
   }
 
-  for (const items of byType.values()) items.reverse(); // 组内按时间正序
   return sortGroups(byType);
 }
 
@@ -84,7 +114,9 @@ function mergeGroups(primary, secondary) {
     if (!byType.has(group)) byType.set(group, []);
     const merged = byType.get(group);
     for (const item of items) {
-      if (!merged.some((existing) => existing.hash === item.hash)) merged.push(item);
+      // 同一条提交切开后可能生成多个条目（共用 hash），所以去重要带上文本
+      const dup = merged.some((existing) => existing.hash === item.hash && existing.text === item.text);
+      if (!dup) merged.push(item);
     }
   }
   return sortGroups(byType);
