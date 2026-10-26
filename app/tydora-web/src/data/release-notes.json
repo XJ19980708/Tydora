@@ -1,7 +1,91 @@
 {
   "generatedAt": "2026-10-26",
-  "current": "0.3.1",
+  "current": "0.3.2",
   "versions": [
+    {
+      "version": "0.3.2",
+      "date": "2026-10-12",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "add test report for version 0.3.1 and implement eager bundle cost check script",
+              "hash": "fc06b9f"
+            },
+            {
+              "text": "更新版本号至 0.3.2",
+              "hash": "4af1de4"
+            },
+            {
+              "text": "支持导入 Markdown 文档与整个文件夹树",
+              "hash": "411b505"
+            },
+            {
+              "text": "关于页新增版本更新说明",
+              "hash": "6066064"
+            },
+            {
+              "text": "导入镜像支持手动重新同步",
+              "hash": "a8044e9"
+            },
+            {
+              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
+              "hash": "11ce405"
+            }
+          ]
+        },
+        {
+          "group": "fix",
+          "items": [
+            {
+              "text": "修复任务管理器窗口图标显示噪点花纹",
+              "hash": "acaf468"
+            },
+            {
+              "text": "当前版本号已有同名 tag 时并进该行，不再同名两行",
+              "hash": "f774bdd"
+            },
+            {
+              "text": "拆分多段提交、过滤 housekeeping，并修复条目顺序",
+              "hash": "b5e9422"
+            }
+          ]
+        },
+        {
+          "group": "docs",
+          "items": [
+            {
+              "text": "README 与 README_ZH 增加中英文互链",
+              "hash": "8e365f5"
+            },
+            {
+              "text": "中英 README fork 化，补便携版下载与本 fork 功能清单",
+              "hash": "c7612f4"
+            }
+          ]
+        },
+        {
+          "group": "test",
+          "items": [
+            {
+              "text": "补「导入镜像 / 重新同步」回归测试用例",
+              "hash": "8a68b37"
+            }
+          ]
+        },
+        {
+          "group": "chore",
+          "items": [
+            {
+              "text": "替换应用 logo 为自定义图标",
+              "hash": "c062fb6"
+            }
+          ]
+        }
+      ]
+    },
     {
       "version": "0.3.1",
       "date": "2026-09-22",
@@ -41,57 +125,6 @@
             {
               "text": "更新版本号至 0.3.1，反映最新更改",
               "hash": "67d2d35"
-            },
-            {
-              "text": "支持导入 Markdown 文档与整个文件夹树",
-              "hash": "411b505"
-            },
-            {
-              "text": "关于页新增版本更新说明",
-              "hash": "6066064"
-            },
-            {
-              "text": "导入镜像支持手动重新同步",
-              "hash": "a8044e9"
-            },
-            {
-              "text": "直接打开仓外源文件，并在新窗口自动展开大纲",
-              "hash": "11ce405"
-            }
-          ]
-        },
-        {
-          "group": "fix",
-          "items": [
-            {
-              "text": "修复任务管理器窗口图标显示噪点花纹",
-              "hash": "acaf468"
-            },
-            {
-              "text": "当前版本号已有同名 tag 时并进该行，不再同名两行",
-              "hash": "f774bdd"
-            }
-          ]
-        },
-        {
-          "group": "docs",
-          "items": [
-            {
-              "text": "README 与 README_ZH 增加中英文互链",
-              "hash": "8e365f5"
-            },
-            {
-              "text": "中英 README fork 化，补便携版下载与本 fork 功能清单",
-              "hash": "c7612f4"
-            }
-          ]
-        },
-        {
-          "group": "test",
-          "items": [
-            {
-              "text": "补「导入镜像 / 重新同步」回归测试用例",
-              "hash": "8a68b37"
             }
           ]
         },
@@ -101,10 +134,6 @@
             {
               "text": "更新中英文语言包，调整界面缩放描述",
               "hash": "d71d3a0"
-            },
-            {
-              "text": "替换应用 logo 为自定义图标",
-              "hash": "c062fb6"
             }
           ]
         }

@@ -1,7 +1,7 @@
 {
   "name": "tydora",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "dsh": {
     "bundle": {
@@ -13,6 +13,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "node scripts/run-tauri.mjs",
+    "tauri:dev": "npm run tauri -- dev",
+    "tauri:build": "npm run tauri -- build",
     "build:msix": "powershell -ExecutionPolicy Bypass -File scripts/build-msix.ps1",
     "build:cli": "node scripts/run-cli-build.mjs",
     "build:cli:win": "powershell -ExecutionPolicy Bypass -File scripts/cli-build.ps1",
@@ -21,6 +23,7 @@
     "sync-version": "node scripts/sync-version.mjs",
     "release-notes": "node scripts/build-release-notes.mjs",
     "prebuild": "node scripts/build-release-notes.mjs",
+    "analyze:bundle": "node scripts/check-eager-bundle.mjs",
     "docs:build": "node scripts/build-docs.mjs",
     "deploy:edgeone": "node scripts/deploy-edgeone.mjs",
     "docs:serve": "node website/site/__preview_server.cjs",
