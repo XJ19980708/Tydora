@@ -37,6 +37,8 @@ export function readDir(p) {
     }));
   } catch (e) { return Promise.reject(e); }
 }
+export function rename(oldPath, newPath) { return fs.promises.rename(oldPath, newPath); }
+export function remove(p, opts) { return fs.promises.rm(p, { recursive: !!(opts && opts.recursive) }); }
 `;
 
 // list_dir_with_meta 的 Rust 实现（file_commands.rs）：mtime 取 ms 后 as_millis() 截断为整数。

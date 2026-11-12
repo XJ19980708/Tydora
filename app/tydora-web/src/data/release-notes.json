@@ -1,22 +1,22 @@
 {
-  "generatedAt": "2026-10-26",
-  "current": "0.3.2",
+  "generatedAt": "2026-11-12",
+  "current": "0.3.3",
   "versions": [
     {
-      "version": "0.3.2",
-      "date": "2026-10-12",
+      "version": "0.3.3",
+      "date": "2026-11-10",
       "released": true,
       "groups": [
         {
           "group": "feat",
           "items": [
             {
-              "text": "add test report for version 0.3.1 and implement eager bundle cost check script",
-              "hash": "fc06b9f"
+              "text": "enhance image management and settings",
+              "hash": "23204a6"
             },
             {
-              "text": "更新版本号至 0.3.2",
-              "hash": "4af1de4"
+              "text": "更新版本号至 0.3.3，反映最新更改",
+              "hash": "f47bd33"
             },
             {
               "text": "支持导入 Markdown 文档与整个文件夹树",
@@ -81,6 +81,26 @@
             {
               "text": "替换应用 logo 为自定义图标",
               "hash": "c062fb6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.2",
+      "date": "2026-10-12",
+      "released": true,
+      "groups": [
+        {
+          "group": "feat",
+          "items": [
+            {
+              "text": "add test report for version 0.3.1 and implement eager bundle cost check script",
+              "hash": "fc06b9f"
+            },
+            {
+              "text": "更新版本号至 0.3.2",
+              "hash": "4af1de4"
             }
           ]
         }

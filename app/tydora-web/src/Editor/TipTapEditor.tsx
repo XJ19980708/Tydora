@@ -649,6 +649,12 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       vimEnabled,
     ].join("|");
 
+    // useEditor 的 options 在渲染期创建，而 @tiptap/react v3 是在 deps 变化后的 effect 里
+    // 才销毁旧实例、并用「这一份」options 建新实例：闭包若直接引用渲染期的 editor const，
+    // 新实例上的回调会永久指向已销毁实例（destroy() 把 commandManager 置 null），
+    // 表现为编辑器快捷键一按就抛 "Cannot read properties of null (reading 'chain')"。
+    const liveEditorRef = useRef<Editor | null>(null);
+
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
@@ -980,13 +986,15 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
 
                 void (async () => {
                   try {
-                    if (isAbsLocal) return; // 绝对路径无需校验基准
+                    if (/^[a-zA-Z]:[\\/]/.test(rawSrc)) return; // 绝对路径无需校验基准
                     const { exists } = await import("@tauri-apps/plugin-fs");
                     if (currentAbsPath && (await exists(currentAbsPath))) return;
                     // 当前解析结果不存在 → 换基准重解析（文档目录 / 仓库根）
                     const candidates: string[] = [];
-                    if (rawSrc.startsWith("/") && vaultRoot) {
-                      // 同步解析已用仓库根，备选：文档目录
+                    if (rawSrc.startsWith("/")) {
+                      // 以 / 开头既可能是类 Unix 绝对路径，也可能是仓库根相对写法（/assets/x.png）；
+                      // 同步解析按后者处理，这里补上前者与文档目录基准
+                      candidates.push(rawSrc);
                       if (docDir) candidates.push(resolveRelativePath(docDir, rawSrc.slice(1)));
                     } else if (docDir) {
                       // 同步解析已用文档目录，备选：仓库根
@@ -1524,6 +1532,11 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
             return false;
           },
           keydown: (_view: any, event: KeyboardEvent) => {
+            // 遮蔽外层 editor const：本回调由「上一轮渲染」的 options 携带，
+            // 外层 const 可能指向已销毁实例，必须经 ref 取当前存活实例。
+            const editor = liveEditorRef.current;
+            if (!editor || editor.isDestroyed) return false;
+
             // 拦截 Ctrl+/（防止被当作 HTML 注释快捷键，模式切换由 App.tsx 全局处理）
             if ((event.ctrlKey || event.metaKey) && event.key === "/") {
               event.preventDefault();
@@ -1764,6 +1777,7 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
         },
       },
     }, [extensionsSignature]);
+    liveEditorRef.current = editor;
 
     // 图片处理
     const handleImageFile = useCallback(async (file: File) => {
@@ -2555,15 +2569,14 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
       // 从 SV 切换到 IR 时，强制同步内容（编辑器 view 在 SV 期间被销毁重建）
       const modeSwitchedToIR = prevModeRef.current === "sv" && mode === "ir";
       prevModeRef.current = mode;
-
-      if (isInternalRef.current) {
-        isInternalRef.current = false;
-        if (!modeSwitchedToIR) return;
-        // mode 切换导致的 isInternalRef 残留：清除标志但继续同步
-      }
       const fileChanged = prevFilePathRef.current !== currentFilePath;
       prevFilePathRef.current = currentFilePath;
 
+      // 文件切换 / 模式切换必须落地：无条件覆盖残留的 isInternalRef。
+      // （残留 flag 的语义是抑制程序化更新的 onChange 回显；若先于文件切换
+      // 被消费，切文件的 setContent 会被跳过——表现为标题已切到新文件、
+      // 内容停留在上一篇。flag 泄漏路径：setContent 内容未变时不触发
+      // onUpdate、setContent 抛异常。）
       if (fileChanged || modeSwitchedToIR) {
         // 文件切换或从 SV 切换回 IR 时强制更新内容
         isInternalRef.current = true;
@@ -2580,6 +2593,10 @@ const TipTapEditor = forwardRef<EditorHandle, TipTapEditorProps>(
             }
           });
         }
+      } else if (isInternalRef.current) {
+        // 非文件切换的程序化更新：onUpdate 未触发时（如内容未变/抛异常）
+        // flag 会残留，此处清除，避免吞掉后续同步
+        isInternalRef.current = false;
       } else {
         const currentContent = getMarkdownSafe(editor);
         // storage.markdown 未就绪时：不比较，保守地不同步（避免覆盖文档内容/引发 setContent 震荡）。
